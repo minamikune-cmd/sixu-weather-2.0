@@ -1,6 +1,7 @@
 import { Moon, Sunrise, Sunset } from 'lucide-react'
-import { getDayProgress, localTimeFromIso } from '../lib/weather'
-import type { WeatherData } from '../types/weather'
+import { getDayProgress } from '../../domain/solar'
+import { localTimeFromIso } from '../../domain/time'
+import type { WeatherData } from '../../types/weather'
 
 export default function SunArc({ data }: { data: WeatherData }) {
   const today = data.daily[0]

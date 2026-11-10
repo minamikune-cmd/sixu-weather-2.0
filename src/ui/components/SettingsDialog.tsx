@@ -1,7 +1,8 @@
 import { Check, RotateCcw, X } from 'lucide-react'
-import { useDialogFocus } from '../hooks/useDialogFocus'
-import { DEFAULT_PREFERENCES, seasonNames } from '../lib/weather'
-import type { Preferences, Season, VisualStyle } from '../types/weather'
+import { DEFAULT_PREFERENCES } from '../../config/preferences'
+import { seasonNames } from '../../domain/seasons'
+import { useDialogFocus } from '../../hooks/useDialogFocus'
+import type { Preferences, Season, VisualStyle } from '../../types/weather'
 
 interface Props {
   open: boolean

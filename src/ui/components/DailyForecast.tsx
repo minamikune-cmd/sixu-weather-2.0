@@ -1,6 +1,7 @@
 import { Droplets, Sunrise, Sunset } from 'lucide-react'
-import { formatDay, formatMonthDay, formatTemperature, localTimeFromIso, weatherDescription } from '../lib/weather'
-import type { DayWeather, TemperatureUnit } from '../types/weather'
+import { formatDay, formatMonthDay, localTimeFromIso } from '../../domain/time'
+import { formatTemperature, weatherDescription } from '../../domain/weather'
+import type { DayWeather, TemperatureUnit } from '../../types/weather'
 import WeatherIcon from './WeatherIcon'
 
 interface Props {

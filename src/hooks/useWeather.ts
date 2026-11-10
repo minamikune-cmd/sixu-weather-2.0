@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { fetchWeather } from '../lib/weather'
+import { DATA_KEY, CITY_KEY } from '../config/keys'
+import { readStorage, writeStorage } from '../platform/storage'
+import { fetchWeather } from '../services/weather/api'
 import type { City, WeatherData } from '../types/weather'
 
 const CACHE_TTL = 10 * 60 * 1000
-export const DATA_KEY = 'sixu-weather-data-v1'
-export const CITY_KEY = 'sixu-city-v1'
 // Keep at most this many cities in the offline cache; oldest entries are evicted.
 const CACHE_LIMIT = 8
 
@@ -17,6 +17,15 @@ interface CachedWeather {
 // cache entry. The 1.0 format was a single { city, data } object; it is
 // migrated transparently on first read.
 type WeatherCache = Record<string, CachedWeather>
+
+function readJson<T>(key: string): T | null {
+  try {
+    const value = readStorage(key)
+    return value ? JSON.parse(value) as T : null
+  } catch {
+    return null
+  }
+}
 
 function readCache(): WeatherCache {
   const stored = readJson<unknown>(DATA_KEY)
@@ -33,30 +42,13 @@ function writeCache(cache: WeatherCache) {
     .filter((entry) => entry.city?.id && entry.data)
     .sort((a, b) => b.data.fetchedAt - a.data.fetchedAt)
     .slice(0, CACHE_LIMIT)
-  writeJson(DATA_KEY, Object.fromEntries(entries.map((entry) => [entry.city.id, entry])))
+  writeStorage(DATA_KEY, JSON.stringify(Object.fromEntries(entries.map((entry) => [entry.city.id, entry]))))
 }
 
 export function saveWeather(city: City, data: WeatherData) {
   const cache = readCache()
   cache[city.id] = { city, data }
   writeCache(cache)
-}
-
-function readJson<T>(key: string): T | null {
-  try {
-    const value = localStorage.getItem(key)
-    return value ? JSON.parse(value) as T : null
-  } catch {
-    return null
-  }
-}
-
-function writeJson(key: string, value: unknown) {
-  try {
-    localStorage.setItem(key, JSON.stringify(value))
-  } catch {
-    // Storage can be disabled; the app remains usable without persistence.
-  }
 }
 
 export function getSavedCity(fallback: City): City {
@@ -69,7 +61,7 @@ export function getCachedWeather(cityId: string): CachedWeather | null {
 }
 
 export function saveCity(city: City) {
-  writeJson(CITY_KEY, city)
+  writeStorage(CITY_KEY, JSON.stringify(city))
 }
 
 export function useWeather(city: City) {

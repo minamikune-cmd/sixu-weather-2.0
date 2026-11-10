@@ -1,5 +1,5 @@
 import { useId } from 'react'
-import { weatherKind } from '../lib/weather'
+import { weatherKind } from '../../domain/weather'
 
 interface Props {
   code: number

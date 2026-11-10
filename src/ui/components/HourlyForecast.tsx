@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { formatHour, formatTemperature, weatherDescription } from '../lib/weather'
-import type { HourWeather, TemperatureUnit } from '../types/weather'
+import { formatHour } from '../../domain/time'
+import { formatTemperature, weatherDescription } from '../../domain/weather'
+import type { HourWeather, TemperatureUnit } from '../../types/weather'
 import WeatherIcon from './WeatherIcon'
 
 interface Props {

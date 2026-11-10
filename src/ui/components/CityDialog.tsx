@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import { Clock3, LocateFixed, MapPin, Navigation, Search, Star, X } from 'lucide-react'
-import { useDialogFocus } from '../hooks/useDialogFocus'
-import { searchCities } from '../lib/weather'
-import type { City } from '../types/weather'
+import { useDialogFocus } from '../../hooks/useDialogFocus'
+import { searchCities } from '../../services/weather/api'
+import type { City } from '../../types/weather'
 
 interface Props {
   open: boolean

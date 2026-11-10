@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import type { DayPhase, Season, WeatherKind } from '../types/weather'
+import type { DayPhase, Season, WeatherKind } from '../../types/weather'
 
 interface Props {
   season: Season
