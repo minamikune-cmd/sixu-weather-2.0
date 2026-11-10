@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">四序天气</string>
+    <string name="title_activity_main">四序天气</string>
+    <string name="package_name">com.minamikune.sixuweather</string>
+    <string name="custom_url_scheme">com.minamikune.sixuweather</string>
+</resources>

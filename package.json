@@ -8,10 +8,13 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
+    "cap:sync": "npm run build && npx cap sync android",
+    "android:build": "npm run cap:sync && cd android && ./gradlew :app:assembleDebug",
     "preview": "vite preview",
     "deploy": "npm run build && wrangler pages deploy dist --project-name=sixu-weather-2-0"
   },
   "dependencies": {
+    "@capacitor/android": "^8.6.0",
     "@capacitor/app": "^8.1.2",
     "@capacitor/core": "^8.6.0",
     "@capacitor/geolocation": "^8.2.4",

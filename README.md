@@ -32,7 +32,8 @@
 | Open-Meteo Forecast API | 实时与预报 | 免费非商业使用、无需密钥、字段完整 |
 | Open-Meteo Geocoding API | 中文城市搜索 | 与天气源一致，无需密钥 |
 | BigDataCloud Reverse Geocode Client | 定位经纬度转城市 | 支持浏览器 HTTPS 请求，免费客户端端点无需密钥 |
-| localStorage | 城市、收藏、偏好、天气缓存 | 纯前端即可实现；仅当前浏览器，不同步设备 |
+| localStorage / Capacitor Preferences | 城市、收藏、偏好、天气缓存 | Web 用 localStorage；Android 经 platform/storage 双写 Preferences，业务层统一接口 |
+| Capacitor 8 | Android 容器 | WebView 直接承载 dist/ 产物，业务逻辑双端共享；定位/状态栏/返回键/启动屏走插件 |
 | Cloudflare Pages | 静态托管 | 全球 CDN、自动 HTTPS、Git 自动部署、无需服务器 |
 
 **没有 Pages Functions。** 所有 API 都是浏览器直接访问的公开 HTTPS GET 请求，静态页面可以完整运行。不要把静态托管理解为可以执行服务器端代码；若以后添加密钥代理、数据库或登录，才需要 Functions/Workers。
@@ -54,7 +55,7 @@ sixu-weather/
 │   ├── _headers                 # Cloudflare Pages 缓存与安全响应头
 │   └── favicon.svg              # 自制四叶图标
 ├── src/
-│   ├── components/
+│   ├── ui/components/           # ① UI 展示层
 │   │   ├── Atmosphere.tsx       # Canvas 粒子、后台暂停、天气与季节场景
 │   │   ├── CityDialog.tsx       # 搜索、经纬度、收藏、最近城市、定位入口
 │   │   ├── DailyForecast.tsx    # 七日预报和温度区间
@@ -62,16 +63,30 @@ sixu-weather/
 │   │   ├── SettingsDialog.tsx   # 单位、季节、风格、动画、本地数据设置
 │   │   ├── SunArc.tsx           # 日出日落与日照进度
 │   │   └── WeatherIcon.tsx      # WMO 天气代码对应 SVG 图标
+│   ├── pages/                   # ② 页面和路由层
+│   │   ├── HomePage.tsx         # 主页面组合（注入式 props）
+│   │   └── routes.ts            # 哈希锚点路由
+│   ├── domain/                  # ③ 业务逻辑层（纯函数）
+│   │   ├── weather.ts / time.ts / solar.ts / seasons.ts
+│   │   ├── alerts.ts            # 由预报推导提示级预警
+│   │   └── cities.ts            # 收藏/最近城市管理
+│   ├── services/weather/        # ④ 数据服务层
+│   │   └── api.ts               # Open-Meteo API、城市搜索、逆地理
+│   ├── config/                  # ⑤ 用户配置层（存储键与默认偏好）
+│   ├── theme/                   # ⑥ 主题和动画系统
+│   ├── platform/                # ⑦ 平台适配层（Capacitor 桥接，Web 自动降级）
 │   ├── hooks/
 │   │   └── useWeather.ts        # 请求、去重、取消、缓存、刷新和错误回退
-│   ├── lib/
-│   │   └── weather.ts           # API、类型转换、单位、季节、昼夜和格式化
 │   ├── types/
 │   │   └── weather.ts           # 完整 TypeScript 类型
 │   ├── App.css                  # 场景、组件、响应式与减少动态效果样式
-│   ├── App.tsx                  # 应用状态、定位流程与全部页面区块
+│   ├── App.tsx                  # 应用外壳：状态编排/网络/返回键/预警条
 │   ├── index.css                # 全局字体和基础样式
-│   └── main.tsx                 # React 入口
+│   └── main.tsx                 # 启动引导：initPlatform → render → hideSplash
+├── android/                     # ⑧ Android 原生能力层（Capacitor）
+├── resources/                   # 应用图标与启动屏矢量源
+├── capacitor.config.ts          # Capacitor 配置（appId/应用名/启动屏）
+├── docs/reports/phase-2-architecture.md  # 2.0 架构交付文档
 ├── .gitignore
 ├── eslint.config.js
 ├── index.html                   # HTML 入口与中文元信息
@@ -89,6 +104,24 @@ sixu-weather/
 每个文件的完整源码均直接在仓库对应路径中提供；构建产物 `dist/` 和依赖目录 `node_modules/` 不应提交 Git。
 
 ## 4. 本地安装、启动和测试
+
+### 4.0 2.0 架构与 Android（Capacitor）
+
+2.0 将代码重组为八层：`ui/components`（UI 展示）、`pages`（页面路由）、`domain`（天气业务纯函数，含预警推导 alerts）、`services/weather`（数据服务）、`config`（用户配置）、`theme`（主题动画）、`platform`（平台适配层：存储/定位/网络/状态栏/返回键/启动屏，Web 自动降级）、`android/`（Android 原生层）。业务逻辑 Web 与 Android 100% 共享，平台差异只在 `src/platform/` 分叉。
+
+Android 端基于 Capacitor 8（appId `com.minamikune.sixuweather`，应用名「四序天气」），Web 产物直接打包进 APK。
+
+```bash
+# Web 构建 + 同步到 Android 工程
+npm run cap:sync
+
+# 构建 Android debug APK（需 JDK 21 + Android SDK platform 37 / build-tools 37.0.0）
+npm run android:build
+```
+
+工具链：AGP 9.5.1 · Gradle 9.8.2（wrapper 已固定）· compileSdk/targetSdk 37 · minSdk 24。CI 中 Web 与 Android 构建并行（`.github/workflows/ci.yml`）。架构细节与兼容性清单见 [docs/reports/phase-2-architecture.md](docs/reports/phase-2-architecture.md)。
+
+### 4.1 Web 开发
 
 推荐 Node.js 22 LTS（Vite 7 最低要求 Node.js 20.19+ 或 22.12+）。
 
