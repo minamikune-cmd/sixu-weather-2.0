@@ -2,12 +2,14 @@
 // 业务数据经 props 注入 pages/HomePage，自身不渲染具体天气内容。
 import { useCallback, useEffect, useState } from 'react'
 import {
-  Check, CloudSun, LocateFixed, MapPin, Menu, Navigation, Search, Settings, Sun, X,
+  Bell, Check, CloudSun, LocateFixed, MapPin, Menu, Navigation, Search, Settings, Sun, X,
 } from 'lucide-react'
 import CityDialog from './ui/components/CityDialog'
 import SettingsDialog from './ui/components/SettingsDialog'
+import SubscriptionsDialog from './ui/components/SubscriptionsDialog'
 import Atmosphere from './ui/components/Atmosphere'
 import { isFavorite as checkFavorite, loadFavorites, loadRecent, pushRecent, toggleFavorite } from './domain/cities'
+import { loadSubscriptions, saveSubscriptions } from './domain/subscriptions'
 import { getDayPhase } from './domain/solar'
 import { weatherKind } from './domain/weather'
 import { getSeason } from './domain/seasons'
@@ -23,9 +25,11 @@ import { isOnline, onNetworkChange } from './platform/network'
 import { registerBackConsumer } from './platform/backButton'
 import { readStorage, removeStorage, writeStorage } from './platform/storage'
 import { setStatusBarDark } from './platform/statusBar'
+import { startNotificationScheduler } from './services/notifications/scheduler'
 import { reverseGeocode } from './services/weather/api'
 import { isDarkChrome, resolveStyleClass } from './theme'
 import type { City, Preferences } from './types/weather'
+import type { Subscription } from './types/subscription'
 import './App.css'
 
 function readFlag(key: string): boolean {
@@ -39,6 +43,8 @@ export default function App() {
   const [recent, setRecent] = useState<City[]>(() => loadRecent())
   const [cityOpen, setCityOpen] = useState(false)
   const [settingsOpen, setSettingsOpen] = useState(false)
+  const [subscriptionsOpen, setSubscriptionsOpen] = useState(false)
+  const [subscriptions, setSubscriptions] = useState<Subscription[]>(() => loadSubscriptions())
   const [locationNotice, setLocationNotice] = useState(() => !readFlag(LOCATION_NOTICE_KEY))
   const [locationDenied, setLocationDenied] = useState(false)
   const [bannerDismissed, setBannerDismissed] = useState(false)
@@ -94,15 +100,21 @@ export default function App() {
 
   useEffect(() => { setBannerDismissed(false) }, [city.id, error, locationDenied, fromCache, offline])
 
-  // Android 返回键：设置 > 城市 > 定位说明，优先关闭最上层的弹层。
+  // Android 返回键：设置 > 订阅 > 城市 > 定位说明，优先关闭最上层的弹层。
   useEffect(() => {
     return registerBackConsumer(() => {
       if (settingsOpen) { setSettingsOpen(false); return true }
+      if (subscriptionsOpen) { setSubscriptionsOpen(false); return true }
       if (cityOpen) { setCityOpen(false); return true }
       if (locationNotice) { setLocationNotice(false); return true }
       return false
     })
-  }, [settingsOpen, cityOpen, locationNotice])
+  }, [settingsOpen, subscriptionsOpen, cityOpen, locationNotice])
+
+  // 天气订阅调度器：每 30 秒检查各订阅城市当地时间，到达通知时间则评估并派发。
+  useEffect(() => {
+    return startNotificationScheduler((message) => setToast(message))
+  }, [])
 
   const timeZone = data?.timezone ?? city.timezone ?? null
   const local = timeZone ? getCityParts(timeZone, now) : null
@@ -170,6 +182,7 @@ export default function App() {
     ALL_KEYS.forEach((key) => removeStorage(key))
     setFavorites([])
     setRecent([])
+    setSubscriptions([])
     setPreferences(DEFAULT_PREFERENCES)
     setCity(DEFAULT_CITY)
     saveCity(DEFAULT_CITY)
@@ -200,6 +213,7 @@ export default function App() {
         <div className="header-actions">
           <button type="button" className="city-trigger" onClick={() => { haptic(); setCityOpen(true) }}><MapPin size={17} /><span>{city.name}</span><Search size={15} /></button>
           <button type="button" className={`icon-button header-icon ${locating ? 'is-loading' : ''}`} onClick={() => { haptic(); void requestLocation() }} disabled={locating} aria-label="定位当前位置"><LocateFixed size={19} /></button>
+          <button type="button" className="icon-button header-icon" onClick={() => { haptic(); setSubscriptionsOpen(true) }} aria-label="天气提醒订阅"><Bell size={19} /></button>
           <button type="button" className="icon-button header-icon" onClick={() => { haptic(); setSettingsOpen(true) }} aria-label="打开设置"><Settings size={19} /></button>
         </div>
       </header>
@@ -227,6 +241,7 @@ export default function App() {
           season={season}
           phase={phase}
           kind={kind}
+          now={now}
           onRefresh={() => { haptic(); void refresh() }}
           onOpenCity={() => { haptic(); setCityOpen(true) }}
           onToggleFavorite={() => handleToggleFavorite(city)}
@@ -235,7 +250,7 @@ export default function App() {
 
       <footer className="site-footer page-shell">
         <div className="footer-brand"><span className="brand-mark"><i /><i /><i /><i /></span><strong>四序天气</strong><p>让每一次抬头，都有迹可循。</p></div>
-        <div className="footer-meta"><p>天气与地理编码：Open-Meteo · 反向城市识别：BigDataCloud</p><p>无需密钥 · 本地偏好仅保存在此设备 · 不展示无可靠来源的空气质量数据</p></div>
+        <div className="footer-meta"><p>天气、空气质量与地理编码：Open-Meteo · 反向城市识别：BigDataCloud</p><p>无需密钥 · 本地偏好与订阅仅保存在此设备 · 空气质量来自 Open-Meteo  CAMS 模式数据，仅供参考</p></div>
         <button type="button" className="text-button" onClick={() => setSettingsOpen(true)}>偏好与隐私 <Settings size={14} /></button>
       </footer>
 
@@ -248,6 +263,15 @@ export default function App() {
 
       <CityDialog open={cityOpen} current={city} favorites={favorites} recent={recent} onClose={closeCityDialog} onSelect={selectCity} onToggleFavorite={handleToggleFavorite} onLocate={() => void requestLocation()} locating={locating} />
       <SettingsDialog open={settingsOpen} preferences={preferences} onChange={updatePreferences} onClose={closeSettingsDialog} onClearData={clearData} />
+      <SubscriptionsDialog
+        open={subscriptionsOpen}
+        subscriptions={subscriptions}
+        onChange={(next) => { setSubscriptions(next); saveSubscriptions(next) }}
+        onClose={() => setSubscriptionsOpen(false)}
+        candidates={[city, ...favorites, ...recent].filter(
+          (item, index, list) => list.findIndex((other) => other.id === item.id) === index,
+        )}
+      />
 
       {locationNotice && (
         <div className="modal-backdrop notice-backdrop">

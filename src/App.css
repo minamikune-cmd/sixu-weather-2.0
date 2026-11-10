@@ -577,8 +577,10 @@ svg { flex-shrink: 0; }
 @keyframes wi-snow-drift { to { transform: translate(1.5px, 3px); } }
 @keyframes wi-bolt-glow { 0%, 100% { opacity: 1; } 50% { opacity: .55; } }
 
-/* 关闭动画：所有运动层暂停（含系统减少动态效果场景） */
-.animations-off *, .animations-off *::before, .animations-off *::after { animation-play-state: paused !important; }
+/* 关闭动画：直接禁用而非暂停——暂停会让淡入动画停在首帧（opacity 0），
+   导致对话框/背景/提示在“关闭动画”或系统减少动态效果场景下不可见。
+   所有入场动画只定义 from 帧，禁用后元素回到自然样式（opacity 1），语义正确。 */
+.animations-off *, .animations-off *::before, .animations-off *::after { animation: none !important; }
 
 /* ============================================================
    响应式
@@ -715,3 +717,43 @@ svg { flex-shrink: 0; }
   html { scroll-behavior: auto; }
   *, *::before, *::after { animation-duration: .01ms !important; animation-iteration-count: 1 !important; transition-duration: .01ms !important; }
 }
+
+/* ---------- 阶段 4：天气订阅与通知 ---------- */
+.subscriptions-dialog { max-width: 680px; }
+
+.permission-banner { display: flex; align-items: center; gap: 10px; margin-bottom: 18px; padding: 13px 16px; border-radius: var(--radius-medium); background: oklch(70% 0.12 80 / .12); border: 1px solid oklch(70% 0.12 80 / .3); font-size: 13px; }
+.permission-banner svg { flex-shrink: 0; }
+.permission-banner span { flex: 1; }
+.permission-banner .secondary-button { min-height: 36px; padding: 0 14px; font-size: 12px; }
+
+.subscriptions-empty { margin: 0 0 16px; color: var(--text-muted); font-size: 13px; line-height: 1.7; }
+
+.subscription-card { margin-bottom: 16px; padding: 18px; border-radius: var(--radius-medium); background: var(--surface-hover); border: 1px solid var(--line); }
+.subscription-card > header { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 12px; }
+.subscription-card > header > div:first-child { display: grid; gap: 3px; }
+.subscription-card > header strong { font-size: 16px; font-weight: 500; }
+.subscription-card > header span { color: var(--text-muted); font-size: 11px; }
+.subscription-actions { display: flex; align-items: center; gap: 6px; }
+
+.subscription-time { display: flex; justify-content: space-between; align-items: center; gap: 14px; margin-bottom: 12px; font-size: 13px; }
+.subscription-time span { color: var(--text-muted); font-size: 12px; }
+.subscription-time input { min-height: 40px; padding: 0 12px; border-radius: 10px; border: 1px solid var(--line); background: var(--glass-bg); color: var(--text); font: inherit; font-size: 14px; }
+
+.rule-list { display: grid; }
+.rule-row { padding: 10px 0; border-top: 1px solid var(--line); }
+.rule-row:first-child { border-top: 0; }
+.rule-main { display: flex; justify-content: space-between; align-items: center; gap: 14px; }
+.rule-main > div { display: grid; gap: 3px; }
+.rule-main strong { font-size: 13px; font-weight: 500; }
+.rule-main span { color: var(--text-muted); font-size: 11px; line-height: 1.5; }
+
+.rule-threshold { display: flex; align-items: center; gap: 12px; margin-top: 10px; padding-left: 2px; }
+.rule-threshold input[type='range'] { flex: 1; accent-color: oklch(70% 0.12 180); }
+.rule-threshold output { min-width: 64px; text-align: right; font-size: 12px; font-variant-numeric: tabular-nums; color: var(--text-muted); }
+
+.add-subscription { margin-top: 6px; padding-top: 16px; border-top: 1px solid var(--line); }
+.add-subscription > strong { display: block; margin-bottom: 10px; font-size: 13px; font-weight: 500; }
+.add-candidate-list { display: flex; flex-wrap: wrap; gap: 8px; }
+.add-candidate-list .secondary-button { min-height: 38px; padding: 0 14px; font-size: 12px; }
+
+.subscriptions-note { margin: 14px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.7; }

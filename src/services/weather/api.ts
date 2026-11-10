@@ -1,6 +1,7 @@
 // 天气数据服务层：Open-Meteo / BigDataCloud 的 HTTP 客户端与数据模型转换。
 // 纯网络与映射逻辑，不含任何展示或业务规则；Web 与 Android 共用同一份实现。
 import type {
+  AirQuality,
   City,
   GeoResult,
   ReverseGeoResult,
@@ -8,8 +9,20 @@ import type {
 } from '../../types/weather'
 
 const FORECAST_URL = 'https://api.open-meteo.com/v1/forecast'
+const AIR_QUALITY_URL = 'https://air-quality-api.open-meteo.com/v1/air-quality'
 const GEOCODING_URL = 'https://geocoding-api.open-meteo.com/v1/search'
 const REVERSE_URL = 'https://api.bigdatacloud.net/data/reverse-geocode-client'
+
+// 客户端限流保护：任意两次 API 请求之间至少间隔这么久（毫秒），
+// 避免页面频繁刷新或网络抖动时打满免费额度；超时请求不计入节流。
+const MIN_REQUEST_INTERVAL = 3000
+let lastRequestAt = 0
+
+async function throttle() {
+  const wait = MIN_REQUEST_INTERVAL - (Date.now() - lastRequestAt)
+  if (wait > 0) await new Promise((resolve) => setTimeout(resolve, wait))
+  lastRequestAt = Date.now()
+}
 
 export async function fetchJson<T>(url: string, timeout = 12000, signal?: AbortSignal): Promise<T> {
   const controller = new AbortController()
@@ -41,6 +54,7 @@ interface ForecastResponse {
     apparent_temperature: number; is_day: number; precipitation: number
     weather_code: number; cloud_cover: number; pressure_msl: number
     wind_speed_10m: number; wind_direction_10m: number; visibility: number
+    wind_gusts_10m?: number | null
   }
   hourly: {
     time: string[]; temperature_2m: number[]; precipitation_probability: (number | null)[]
@@ -53,15 +67,57 @@ interface ForecastResponse {
   }
 }
 
+interface AirQualityResponse {
+  current: {
+    time: string
+    us_aqi: number | null
+    pm2_5: number | null
+    pm10: number | null
+    ozone: number | null
+    nitrogen_dioxide: number | null
+    sulphur_dioxide: number | null
+    carbon_monoxide: number | null
+  }
+}
+
+// 天气与空气质量并行请求；空气质量失败不阻断主流程（降级为无数据展示）。
 export async function fetchWeather(city: City, signal?: AbortSignal): Promise<WeatherData> {
-  const params = new URLSearchParams({
-    latitude: String(city.latitude), longitude: String(city.longitude),
-    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,visibility',
+  const common = {
+    latitude: String(city.latitude), longitude: String(city.longitude), timezone: 'auto',
+  }
+  const forecastParams = new URLSearchParams({
+    ...common,
+    current: 'temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,pressure_msl,wind_speed_10m,wind_direction_10m,wind_gusts_10m,visibility',
     hourly: 'temperature_2m,precipitation_probability,weather_code,is_day,uv_index',
     daily: 'weather_code,temperature_2m_max,temperature_2m_min,sunrise,sunset,uv_index_max,precipitation_probability_max',
-    timezone: 'auto', forecast_days: '8', temperature_unit: 'celsius', wind_speed_unit: 'kmh',
+    forecast_days: '8', temperature_unit: 'celsius', wind_speed_unit: 'kmh',
   })
-  const raw = await fetchJson<ForecastResponse>(`${FORECAST_URL}?${params}`, 12000, signal)
+  const airParams = new URLSearchParams({
+    ...common,
+    current: 'us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide,sulphur_dioxide,carbon_monoxide',
+  })
+
+  await throttle()
+  // 空气质量与主预报并行；任一失败不影响另一个，空气质量整体失败时降级为 null。
+  const [raw, airRaw] = await Promise.all([
+    fetchJson<ForecastResponse>(`${FORECAST_URL}?${forecastParams}`, 12000, signal),
+    fetchJson<AirQualityResponse>(`${AIR_QUALITY_URL}?${airParams}`, 10000, signal).catch(() => null),
+  ])
+
+  let airQuality: AirQuality | null = null
+  if (airRaw?.current) {
+    airQuality = {
+      time: airRaw.current.time,
+      usAqi: airRaw.current.us_aqi ?? null,
+      pm25: airRaw.current.pm2_5 ?? null,
+      pm10: airRaw.current.pm10 ?? null,
+      ozone: airRaw.current.ozone ?? null,
+      nitrogenDioxide: airRaw.current.nitrogen_dioxide ?? null,
+      sulphurDioxide: airRaw.current.sulphur_dioxide ?? null,
+      carbonMonoxide: airRaw.current.carbon_monoxide ?? null,
+    }
+  }
+
   const nowIndex = Math.max(0, raw.hourly.time.findIndex((time) => time >= raw.current.time.slice(0, 13) + ':00'))
   return {
     timezone: raw.timezone,
@@ -78,6 +134,7 @@ export async function fetchWeather(city: City, signal?: AbortSignal): Promise<We
       cloudCover: raw.current.cloud_cover,
       pressure: raw.current.pressure_msl,
       windSpeed: raw.current.wind_speed_10m,
+      windGusts: raw.current.wind_gusts_10m ?? null,
       windDirection: raw.current.wind_direction_10m,
       visibility: raw.current.visibility,
       isDay: raw.current.is_day === 1,
@@ -103,11 +160,13 @@ export async function fetchWeather(city: City, signal?: AbortSignal): Promise<We
       uvIndexMax: raw.daily.uv_index_max[index] ?? 0,
       precipitationProbabilityMax: raw.daily.precipitation_probability_max[index] ?? 0,
     })),
+    airQuality,
   }
 }
 
 export async function searchCities(query: string, signal?: AbortSignal): Promise<City[]> {
   const params = new URLSearchParams({ name: query.trim(), count: '8', language: 'zh', format: 'json' })
+  await throttle()
   const raw = await fetchJson<{ results?: GeoResult[] }>(`${GEOCODING_URL}?${params}`, 10000, signal)
   return (raw.results ?? []).map((item) => ({
     id: String(item.id), name: item.name, admin1: item.admin1, country: item.country,
@@ -117,6 +176,7 @@ export async function searchCities(query: string, signal?: AbortSignal): Promise
 
 export async function reverseGeocode(latitude: number, longitude: number, signal?: AbortSignal): Promise<City> {
   const params = new URLSearchParams({ latitude: String(latitude), longitude: String(longitude), localityLanguage: 'zh' })
+  await throttle()
   const raw = await fetchJson<ReverseGeoResult>(`${REVERSE_URL}?${params}`, 10000, signal)
   const name = raw.city || raw.locality
   if (!name) throw new Error('已获取位置，但无法识别城市，请手动搜索。')

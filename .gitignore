@@ -40,3 +40,9 @@ pnpm-debug.log*
 .gradle/
 .fonts/
 .xdg/
+.tests-bundle.cjs
+
+# 阶段 4 本地验收产物
+.gradle-home/
+.gradle-home*.log
+.tmp-e2e/

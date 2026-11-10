@@ -15,8 +15,8 @@ function todaySolar(data: WeatherData) {
   return data.daily.find((day) => day.date === dateKey) ?? data.daily[0]
 }
 
-export function getDayPhase(data: WeatherData): DayPhase {
-  const now = getLocalMinutes(data.timezone)
+export function getDayPhase(data: WeatherData, date = new Date()): DayPhase {
+  const now = getLocalMinutes(data.timezone, date)
   const solar = todaySolar(data)
   const sunrise = minutesOfLocalIso(solar?.sunrise)
   const sunset = minutesOfLocalIso(solar?.sunset)
@@ -27,8 +27,8 @@ export function getDayPhase(data: WeatherData): DayPhase {
   return 'night'
 }
 
-export function getDayProgress(data: WeatherData): number {
-  const now = getLocalMinutes(data.timezone)
+export function getDayProgress(data: WeatherData, date = new Date()): number {
+  const now = getLocalMinutes(data.timezone, date)
   const solar = todaySolar(data)
   const sunrise = minutesOfLocalIso(solar?.sunrise) ?? 360
   const sunset = minutesOfLocalIso(solar?.sunset) ?? 1080

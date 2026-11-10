@@ -36,9 +36,22 @@ export interface CurrentWeather {
   cloudCover: number
   pressure: number
   windSpeed: number
+  windGusts: number | null
   windDirection: number
   visibility: number
   isDay: boolean
+}
+
+// 空气质量（Open-Meteo Air Quality API，无需密钥；部分区域或时刻可能缺测）。
+export interface AirQuality {
+  time: string
+  usAqi: number | null
+  pm25: number | null
+  pm10: number | null
+  ozone: number | null
+  nitrogenDioxide: number | null
+  sulphurDioxide: number | null
+  carbonMonoxide: number | null
 }
 
 export interface HourWeather {
@@ -68,6 +81,7 @@ export interface WeatherData {
   current: CurrentWeather
   hourly: HourWeather[]
   daily: DayWeather[]
+  airQuality: AirQuality | null
   fetchedAt: number
 }
 

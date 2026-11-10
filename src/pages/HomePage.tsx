@@ -2,12 +2,13 @@
 // 负责把业务数据组合成“此刻 / 逐时 / 七日”三个锚点区块；
 // 自身不发起请求，数据全部由 App 外壳注入。
 import {
-  ArrowDown, ArrowUp, CloudSun, Droplets, Eye, Gauge, RefreshCw, Search, Star, Sun, Umbrella, Wind,
+  ArrowDown, ArrowUp, CloudSun, Droplets, Eye, Gauge, Leaf, RefreshCw, Search, Star, Sun, Umbrella, Wind,
 } from 'lucide-react'
 import DailyForecast from '../ui/components/DailyForecast'
 import HourlyForecast from '../ui/components/HourlyForecast'
 import SunArc from '../ui/components/SunArc'
 import WeatherIcon from '../ui/components/WeatherIcon'
+import { aqiLevel, primaryPollutant } from '../domain/air'
 import { buildWeatherAlerts } from '../domain/alerts'
 import { daylightDuration } from '../domain/solar'
 import {
@@ -31,18 +32,22 @@ export interface HomePageProps {
   season: Season
   phase: DayPhase
   kind: WeatherKind
+  now: Date
   onRefresh: () => void
   onOpenCity: () => void
   onToggleFavorite: () => void
 }
 
 export default function HomePage(props: HomePageProps) {
-  const { city, data, loading, error, fromCache, refreshing, preferences, isFavorite, local, timeZone, season, phase, kind } = props
+  const { city, data, loading, error, fromCache, refreshing, preferences, isFavorite, local, timeZone, season, phase, kind, now } = props
   const today = data?.daily[0]
   const uv = data?.hourly[0]?.uvIndex ?? today?.uvIndexMax ?? 0
   const updatedAt = data
     ? new Intl.DateTimeFormat('zh-CN', { timeZone: timeZone ?? undefined, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(data.fetchedAt)
     : '--:--'
+  // 数据过期提示：缓存超过 1 小时明确标注，避免用户误读为实时数据。
+  const staleCache = data ? now.getTime() - data.fetchedAt > 60 * 60 * 1000 : false
+  const updateLabel = fromCache ? (staleCache ? '缓存数据较旧，获取于' : '缓存于') : '更新于'
   const currentDate = local ? `${local.year}-${local.month}-${local.day}` : ''
   const todaySolar = data?.daily.find((day) => day.date === currentDate) ?? today
   const alerts = data ? buildWeatherAlerts(data) : []
@@ -130,17 +135,27 @@ export default function HomePage(props: HomePageProps) {
               <RefreshCw size={18} className={refreshing ? 'spin' : ''} />
             </button>
           </div>
-          <div className="update-note"><span className={refreshing ? 'live-dot refreshing' : 'live-dot'} />{refreshing ? '正在更新气象数据' : `${fromCache ? '缓存' : '更新'}于 ${updatedAt}`}<small>Open-Meteo</small></div>
+          <div className="update-note"><span className={refreshing ? 'live-dot refreshing' : 'live-dot'} />{refreshing ? '正在更新气象数据' : `${updateLabel} ${updatedAt}`}<small>Open-Meteo</small></div>
         </div>
       </section>
 
       <section className="metrics-section page-shell" aria-label="当前天气详情">
         <Metric icon={<Droplets />} label="相对湿度" value={`${data.current.humidity}%`} detail={data.current.humidity > 70 ? '空气湿润' : data.current.humidity < 35 ? '空气偏干' : '体感舒适'} />
-        <Metric icon={<Wind />} label="风" value={formatWind(data.current.windSpeed, preferences.windUnit)} detail={`${windDirection(data.current.windDirection)} · ${Math.round(data.current.windDirection)}°`} />
+        <Metric icon={<Wind />} label="风" value={formatWind(data.current.windSpeed, preferences.windUnit)} detail={`${windDirection(data.current.windDirection)} · ${Math.round(data.current.windDirection)}°${data.current.windGusts != null ? ` · 阵风 ${formatWind(data.current.windGusts, preferences.windUnit)}` : ''}`} />
         <Metric icon={<Umbrella />} label="降水概率" value={`${data.hourly[0]?.precipitationProbability ?? 0}%`} detail={`过去一小时 ${data.current.precipitation} mm`} />
         <Metric icon={<Sun />} label="紫外线" value={`${uv.toFixed(1)}`} detail={uvDescription(uv)} />
         <Metric icon={<Eye />} label="能见度" value={visibilityText(data.current.visibility)} detail={data.current.visibility >= 10000 ? '视野清晰' : '注意视野变化'} />
         <Metric icon={<Gauge />} label="海平面气压" value={`${Math.round(data.current.pressure)}`} detail="hPa" />
+        {data.airQuality?.usAqi != null ? (
+          <Metric
+            icon={<Leaf />}
+            label="空气质量"
+            value={<span style={{ color: aqiLevel(data.airQuality.usAqi).color }}>{Math.round(data.airQuality.usAqi)}</span>}
+            detail={`${aqiLevel(data.airQuality.usAqi).label}${primaryPollutant(data.airQuality) ? ` · 首要 ${primaryPollutant(data.airQuality)}` : ''}`}
+          />
+        ) : (
+          <Metric icon={<Leaf />} label="空气质量" value="暂无" detail="该区域暂无监测数据" />
+        )}
       </section>
 
       <section className="forecast-section page-shell" id="hourly">
@@ -162,7 +177,7 @@ export default function HomePage(props: HomePageProps) {
   )
 }
 
-function Metric({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: string; detail: string }) {
+function Metric({ icon, label, value, detail }: { icon: React.ReactNode; label: string; value: React.ReactNode; detail: string }) {
   return <article className="metric-card"><div className="metric-icon">{icon}</div><span>{label}</span><strong>{value}</strong><small>{detail}</small></article>
 }
 

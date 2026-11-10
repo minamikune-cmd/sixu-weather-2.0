@@ -39,4 +39,10 @@
     <uses-permission android:name="android.permission.INTERNET" />
     <!-- 触觉反馈：platform/haptics.ts 的轻点振动（Web 端静默降级，无振动马达的设备无效果） -->
     <uses-permission android:name="android.permission.VIBRATE" />
+
+    <!-- 天气订阅提醒的本地通知（platform/notifications.ts） -->
+    <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.SCHEDULE_EXACT_ALARM" />
+    <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
 </manifest>
