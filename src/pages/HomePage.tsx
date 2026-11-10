@@ -2,7 +2,7 @@
 // 负责把业务数据组合成“此刻 / 逐时 / 七日”三个锚点区块；
 // 自身不发起请求，数据全部由 App 外壳注入。
 import {
-  ArrowDown, ArrowUp, CloudSun, Droplets, Eye, Gauge, Leaf, RefreshCw, Search, Star, Sun, Umbrella, Wind,
+  AlertTriangle, ArrowDown, ArrowUp, CloudSun, Droplets, Eye, Gauge, Leaf, RefreshCw, Search, Star, Sun, Umbrella, Wind,
 } from 'lucide-react'
 import DailyForecast from '../ui/components/DailyForecast'
 import HourlyForecast from '../ui/components/HourlyForecast'
@@ -17,6 +17,7 @@ import {
 import { phaseLabels, seasonEnglish } from '../theme'
 import { seasonNames } from '../domain/seasons'
 import type { City, DayPhase, Preferences, Season, WeatherData, WeatherKind } from '../types/weather'
+import type { OfficialWarning } from '../types/warning'
 
 export interface HomePageProps {
   city: City
@@ -33,13 +34,14 @@ export interface HomePageProps {
   phase: DayPhase
   kind: WeatherKind
   now: Date
+  warnings: OfficialWarning[]
   onRefresh: () => void
   onOpenCity: () => void
   onToggleFavorite: () => void
 }
 
 export default function HomePage(props: HomePageProps) {
-  const { city, data, loading, error, fromCache, refreshing, preferences, isFavorite, local, timeZone, season, phase, kind, now } = props
+  const { city, data, loading, error, fromCache, refreshing, preferences, isFavorite, local, timeZone, season, phase, kind, now, warnings } = props
   const today = data?.daily[0]
   const uv = data?.hourly[0]?.uvIndex ?? today?.uvIndexMax ?? 0
   const updatedAt = data
@@ -67,6 +69,20 @@ export default function HomePage(props: HomePageProps) {
 
   return (
     <>
+      {warnings.length > 0 && (
+        <section className="official-warnings page-shell" aria-label="官方天气预警">
+          {warnings.map((warning) => (
+            <article key={warning.id} className={`official-warning level-${warning.level}`}>
+              <AlertTriangle size={18} />
+              <div>
+                <strong>{warning.title}</strong>
+                <span>{warning.issuer} · {warning.issueTime} 发布</span>
+              </div>
+            </article>
+          ))}
+        </section>
+      )}
+
       {alerts.length > 0 && (
         <section className="alerts-strip page-shell" aria-label="天气提示">
           {alerts.map((alert) => (

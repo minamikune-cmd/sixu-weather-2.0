@@ -13,9 +13,15 @@ import {
   scheduleDailyReminder,
 } from '../../platform/notifications'
 import { fetchWeather } from '../weather/api'
+import { fetchWarnings } from '../weather/warnings'
 
 const TICK_INTERVAL = 30 * 1000
 const WEATHER_TTL = 10 * 60 * 1000
+
+// 官方预警（红/橙）不等每日通知时间，发现即推送。
+function isUrgent(candidate: NotificationCandidate): boolean {
+  return candidate.level === 'warning' && candidate.dedupeKey.includes(':official-')
+}
 
 async function weatherFor(city: City): Promise<WeatherData | null> {
   const cached = getCachedWeather(city.id)
@@ -57,13 +63,27 @@ export function startNotificationScheduler(onError?: (message: string) => void):
         }
         const weather = await weatherFor(subscription.city)
         if (!weather) continue
+        // 官方预警走全国列表缓存，多城市订阅不会重复请求。
+        const { warnings } = await fetchWarnings(subscription.city)
         const local = getCityParts(weather.timezone)
         const hhmm = `${local.hour}:${local.minute}`
         const dateKey = `${local.year}-${local.month}-${local.day}`
         const triggerKey = `${subscription.id}:${dateKey}:triggered`
 
-        const candidates = evaluateSubscription(subscription, weather)
+        const candidates = evaluateSubscription(subscription, weather, warnings)
           .filter((candidate) => !notified.has(candidate.dedupeKey))
+
+        // 红/橙官方预警立即推送，不等每日通知时间。
+        const deliveredKeys = new Set<string>()
+        let urgentDelivered = 0
+        for (const candidate of candidates.filter(isUrgent)) {
+          if (await deliverNotification(candidate)) {
+            markNotified(candidate.dedupeKey)
+            deliveredKeys.add(candidate.dedupeKey)
+            urgentDelivered += 1
+          }
+        }
+        if (urgentDelivered > 0) onError?.(`${subscription.city.name}官方预警：已推送 ${urgentDelivered} 条`)
 
         // Android：每次运行都刷新原生每日调度（幂等：先取消同 id 旧调度）。
         if (isNative) {
@@ -79,7 +99,7 @@ export function startNotificationScheduler(onError?: (message: string) => void):
         if (notified.has(triggerKey) || hhmm < subscription.notifyTime) continue
 
         let delivered = 0
-        for (const candidate of candidates) {
+        for (const candidate of candidates.filter((item) => !deliveredKeys.has(item.dedupeKey))) {
           if (await deliverNotification(candidate)) {
             markNotified(candidate.dedupeKey)
             delivered += 1

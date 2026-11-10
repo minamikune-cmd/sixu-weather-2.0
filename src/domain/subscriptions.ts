@@ -4,6 +4,7 @@
 import { SUBSCRIPTIONS_KEY, NOTIFIED_KEY } from '../config/keys'
 import { readStorage, writeStorage } from '../platform/storage'
 import type { City, WeatherData } from '../types/weather'
+import type { OfficialWarning } from '../types/warning'
 import type { NotificationCandidate, Subscription } from '../types/subscription'
 import { DEFAULT_ALERT_RULES } from '../types/subscription'
 import { buildWeatherAlerts } from './alerts'
@@ -64,8 +65,17 @@ export function removeSubscription(subscriptions: Subscription[], id: string): S
 
 const RAIN_CODES = new Set([51, 53, 55, 56, 57, 61, 63, 65, 66, 67, 80, 81, 82, 95, 96, 99])
 
+const OFFICIAL_LEVEL_LABEL: Record<OfficialWarning['level'], string> = {
+  red: '红色', orange: '橙色', yellow: '黄色', blue: '蓝色',
+}
+
 // 把“今天是否已过了通知时间”交给调度器判断；引擎只负责根据数据生成候选。
-export function evaluateSubscription(subscription: Subscription, data: WeatherData): NotificationCandidate[] {
+// officialWarnings 为中央气象台官方预警（可能为空数组），与数据推导提示互补。
+export function evaluateSubscription(
+  subscription: Subscription,
+  data: WeatherData,
+  officialWarnings: OfficialWarning[] = [],
+): NotificationCandidate[] {
   if (!subscription.enabled) return []
   const candidates: NotificationCandidate[] = []
   const local = getCityParts(data.timezone)
@@ -146,8 +156,17 @@ export function evaluateSubscription(subscription: Subscription, data: WeatherDa
     }
   }
 
-  // 官方气象预警：Open-Meteo 不提供官方预警数据源，这里推送数据推导的 watch 级提示。
+  // 官方气象预警：中央气象台发布的预警（nmc.cn 公开接口）优先推送；
+  // 无官方预警覆盖时，数据推导的 watch 级提示作为补充。
   if (subscription.rules.alerts) {
+    for (const warning of officialWarnings.slice(0, 3)) {
+      push(
+        `official-${warning.id}`,
+        warning.level === 'red' || warning.level === 'orange' ? 'warning' : 'info',
+        `${cityName}官方预警 · ${warning.type}${OFFICIAL_LEVEL_LABEL[warning.level]}预警`,
+        `${warning.issuer} ${warning.issueTime} 发布`,
+      )
+    }
     for (const alert of buildWeatherAlerts(data)) {
       if (alert.level !== 'watch') continue
       push(`alert-${alert.id}`, 'warning', `${cityName}${alert.title}提示`, alert.detail)

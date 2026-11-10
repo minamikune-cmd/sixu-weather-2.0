@@ -757,3 +757,28 @@ svg { flex-shrink: 0; }
 .add-candidate-list .secondary-button { min-height: 38px; padding: 0 14px; font-size: 12px; }
 
 .subscriptions-note { margin: 14px 0 0; color: var(--text-muted); font-size: 11px; line-height: 1.7; }
+
+/* ── 官方天气预警（中央气象台） ───────────────────────────── */
+.official-warnings { display: grid; gap: 8px; margin-top: 14px; }
+.official-warning {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 12px 16px; border-radius: 14px;
+  background: var(--glass-bg); border: 1px solid var(--glass-border);
+  backdrop-filter: blur(var(--glass-blur)) saturate(var(--glass-sat));
+  border-left-width: 3px; animation: card-rise 420ms cubic-bezier(.22,1,.36,1) backwards;
+}
+.official-warning svg { flex-shrink: 0; margin-top: 2px; }
+.official-warning strong { display: block; font-size: 13px; font-weight: 500; letter-spacing: .04em; }
+.official-warning span { display: block; margin-top: 4px; font-size: 12px; color: var(--text-muted); }
+.official-warning.level-red { border-left-color: #e5484d; }
+.official-warning.level-red svg, .official-warning.level-red strong { color: #ff9592; }
+.official-warning.level-orange { border-left-color: #f76b15; }
+.official-warning.level-orange svg, .official-warning.level-orange strong { color: #ffa474; }
+.official-warning.level-yellow { border-left-color: #ffb224; }
+.official-warning.level-yellow svg, .official-warning.level-yellow strong { color: #ffd60a; }
+.official-warning.level-blue { border-left-color: #0091ff; }
+.official-warning.level-blue svg, .official-warning.level-blue strong { color: #6bc5ff; }
+.style-light .official-warning.level-red { background: oklch(84% 0.09 20 / .3); }
+.style-light .official-warning.level-orange { background: oklch(86% 0.09 60 / .3); }
+.style-light .official-warning.level-yellow { background: oklch(90% 0.08 90 / .35); }
+.style-light .official-warning.level-blue { background: oklch(88% 0.06 240 / .3); }

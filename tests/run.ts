@@ -38,6 +38,8 @@ async function main(): Promise<void> {
   await import('./air.test').then((module) => module.runAirTests()).then(() => import('./harness').then((h) => h.summary('空气质量')))
   console.log('■ 订阅评估引擎')
   await import('./subscriptions.test').then((module) => module.runSubscriptionTests()).then(() => import('./harness').then((h) => h.summary('订阅引擎')))
+  console.log('■ 官方天气预警（解析/过滤/缓存/订阅集成）')
+  await import('./warnings.test').then((module) => module.runWarningTests()).then(() => import('./harness').then((h) => h.summary('官方预警')))
   console.log('■ 数据可靠性（错误路径）')
   await import('./api.test').then((module) => module.runApiTests()).then(() => import('./harness').then((h) => h.summary('数据可靠性')))
   if (process.exitCode === 1) console.error('\n存在失败用例')

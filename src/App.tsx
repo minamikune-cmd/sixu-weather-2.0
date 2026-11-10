@@ -15,6 +15,7 @@ import { weatherKind } from './domain/weather'
 import { getSeason } from './domain/seasons'
 import { getCityParts } from './domain/time'
 import { useWeather } from './hooks/useWeather'
+import { useWarnings } from './hooks/useWarnings'
 import HomePage from './pages/HomePage'
 import { ROUTES } from './pages/routes'
 import { ALL_KEYS, LOCATION_NOTICE_KEY } from './config/keys'
@@ -53,6 +54,7 @@ export default function App() {
   const [toast, setToast] = useState('')
   const [now, setNow] = useState(new Date())
   const { data, loading, refreshing, error, fromCache, refresh } = useWeather(city)
+  const { warnings, refresh: refreshWarnings } = useWarnings(city)
 
   useEffect(() => {
     const timer = window.setInterval(() => setNow(new Date()), 1000)
@@ -242,7 +244,8 @@ export default function App() {
           phase={phase}
           kind={kind}
           now={now}
-          onRefresh={() => { haptic(); void refresh() }}
+          warnings={warnings}
+          onRefresh={() => { haptic(); void refresh(); void refreshWarnings() }}
           onOpenCity={() => { haptic(); setCityOpen(true) }}
           onToggleFavorite={() => handleToggleFavorite(city)}
         />
@@ -250,7 +253,7 @@ export default function App() {
 
       <footer className="site-footer page-shell">
         <div className="footer-brand"><span className="brand-mark"><i /><i /><i /><i /></span><strong>四序天气</strong><p>让每一次抬头，都有迹可循。</p></div>
-        <div className="footer-meta"><p>天气、空气质量与地理编码：Open-Meteo · 反向城市识别：BigDataCloud</p><p>无需密钥 · 本地偏好与订阅仅保存在此设备 · 空气质量来自 Open-Meteo  CAMS 模式数据，仅供参考</p></div>
+        <div className="footer-meta"><p>天气、空气质量与地理编码：Open-Meteo · 官方预警：中央气象台 nmc.cn · 反向城市识别：BigDataCloud</p><p>无需密钥 · 本地偏好与订阅仅保存在此设备 · 空气质量来自 Open-Meteo  CAMS 模式数据，仅供参考</p></div>
         <button type="button" className="text-button" onClick={() => setSettingsOpen(true)}>偏好与隐私 <Settings size={14} /></button>
       </footer>
 

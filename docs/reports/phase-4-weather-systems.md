@@ -14,7 +14,8 @@
 | 能见度 | ✅ 既有 | — |
 | 空气质量（US AQI、PM2.5、PM10、O₃、NO₂、SO₂、CO、首要污染物、六级分级配色） | ✅ 新增 | Open-Meteo Air Quality API（CAMS 模式数据） |
 | 日出时间 / 日落时间 | ✅ 修复时区语义并补测试 | `src/domain/solar.ts`、`src/domain/time.ts` |
-| 天气预警 | ⚠️ 数据推导提示（数据源限制，见已知限制） | `src/domain/alerts.ts` + `src/domain/subscriptions.ts` |
+| 官方天气预警（中央气象台发布，蓝/黄/橙/红四级，按城市/省份匹配，首页横幅展示） | ✅ 新增（nmc.cn 公开接口，方案 B） | `src/services/weather/warnings.ts` + `src/hooks/useWarnings.ts` |
+| 数据推导天气提示（无官方预警覆盖时的补充） | ✅ 既有 | `src/domain/alerts.ts` + `src/domain/subscriptions.ts` |
 | 日出日落时区逻辑（UTC/本地时区/夏令时/跨日期/极地边界） | ✅ 11 个专项测试 | `tests/solar.test.ts` |
 | 城市订阅（上限 10 个） | ✅ | `src/domain/subscriptions.ts` + `src/ui/components/SubscriptionsDialog.tsx` |
 | 每日天气订阅 | ✅ | 规则 `daily` |
@@ -24,7 +25,7 @@
 | 大风提醒（当前风速阈值） | ✅ | 规则 `wind`（默认关，50 km/h） |
 | 暴雨提醒（≥3 小时持续高降水概率） | ✅ | 规则 `heavyRain`（默认开，70%） |
 | 寒潮提醒（今明最低气温降幅阈值） | ✅ | 规则 `coldWave`（默认关，8°C） |
-| 官方天气预警推送 | ⚠️ 数据源不支持，推送 watch 级数据推导提示 | 规则 `alerts`（默认开） |
+| 官方天气预警推送（红/橙立即推送，黄/蓝随每日通知；数据推导提示作为补充） | ✅ | 规则 `alerts`（默认开） |
 | 订阅开关 / 阈值自定义 / 城市管理 / 通知时间 / 通知类型管理 | ✅ | 订阅对话框 |
 | Web 通知（Notification API，符合权限规则） | ✅ | `src/platform/notifications.ts` |
 | Android 原生本地通知（Capacitor Local Notifications，应用关闭后仍可每日触发） | ✅ | 同上 + `AndroidManifest.xml` 权限 |
@@ -43,8 +44,15 @@
 | --- | --- | --- |
 | 天气预报 | `https://api.open-meteo.com/v1/forecast` | `timezone=auto`、`current=temperature_2m,…,wind_gusts_10m,visibility`、`hourly=temperature_2m,precipitation_probability,weather_code,is_day,uv_index`、`daily=weather_code,temperature_2m_max/min,sunrise,sunset,uv_index_max,precipitation_probability_max`、`forecast_days=8` |
 | 空气质量 | `https://air-quality-api.open-meteo.com/v1/air-quality` | `current=us_aqi,pm2_5,pm10,ozone,nitrogen_dioxide,sulphur_dioxide,carbon_monoxide` |
+| 官方预警 | `https://www.nmc.cn/rest/findAlarm` | `pageNo=1&pageSize=500`（全国列表一页拉全，客户端按城市/省份过滤） |
 | 城市搜索 | `https://geocoding-api.open-meteo.com/v1/search` | `name=…&count=8&language=zh` |
 | 逆地理编码 | `https://api.bigdatacloud.net/data/reverse-geocode-client` | `latitude=…&longitude=…&localityLanguage=zh` |
+
+**官方预警接口说明（nmc.cn，免费无需密钥）**：
+- 实测带 `Access-Control-Allow-Origin: *`，浏览器可直接请求，无需自建代理；HTTPS 可用。
+- 返回字段：`alertid`（含行政区划代码+发布时间戳，全局唯一，用于去重）、`title`（如「北京市气象台发布暴雨红色预警信号」）、`issuetime`（**北京时间** `2026/11/11 03:12`，按 +08:00 解析显示，不做本地时区换算）、`url`（详情页，相对路径需补域名）。
+- 城市匹配：标题包含城市名（市级发布）或省份名（省级发布，覆盖全省）；行政区划后缀自动剥离（北京市→北京、广西壮族自治区→广西）。
+- 缓存：全国列表共享一份缓存（10 分钟 TTL，localStorage `sixu-warnings-v1`），多城市订阅不重复请求；请求失败退回过期缓存，无缓存返回空（预警是增强信息，不阻断主流程）。
 
 ### 2.2 时间语义（重点）
 
@@ -146,7 +154,8 @@ markNotified() 记录去重键
 | `low-temp` | 今日最低温 ≤ 阈值 | warning |
 | `wind` | 当前风速 ≥ 阈值 | warning |
 | `cold-wave` | 今晨最低温 − 明晨最低温 ≥ 阈值 | warning |
-| `alert-*` | 数据推导预警中 watch 级项（雷电/大风） | warning |
+| `official-{alertid}` | 中央气象台官方预警（红/橙 → warning 且**立即推送**，不等每日通知时间；黄/蓝 → info 随每日通知） | warning / info |
+| `alert-*` | 数据推导预警中 watch 级项（雷电/大风），官方预警之外的补充 | warning |
 
 ### 4.3 平台差异
 
@@ -163,14 +172,17 @@ markNotified() 记录去重键
 | 时间与日照（时区/夏令时/跨日期/极地/格式） | 11 | ✅ 11/11 |
 | 空气质量分级（六档边界/首要污染物） | 2 | ✅ 2/2 |
 | 订阅评估引擎（8 类规则触发与抑制/禁用/去重键） | 12 | ✅ 12/12 |
+| 官方预警（标题解析/区划后缀/城市过滤/排序/北京时间解析/缓存与失败兜底/订阅集成） | 13 | ✅ 13/13 |
 | 数据可靠性（429/5xx/超时/断网/外部取消） | 7 | ✅ 7/7 |
 
 ### 5.2 Web 端冒烟测试（真实构建 + 真实 API，Playwright headless）
 
 - 首页真实渲染北京数据（气温 2°C、湿度 84%、北风 6 km/h、AQI 指标、日出日落板块），无未捕获 JS 错误。
 - 订阅对话框：打开 → 权限横幅（denied 态文案正确）→ 添加北京订阅 → 卡片渲染（开关/删除/07:30 时间选择器/8 条规则+阈值滑杆）→ localStorage 持久化验证 → 关闭开关后 `enabled:false` 持久化验证。全部通过。
+- 官方预警：路由拦截模拟 NMC 返回北京暴雨红色预警 → 首页横幅正确渲染（级别样式/发布单位/发布时间）、其它城市预警不误显；另验证浏览器对 `nmc.cn` 的真实请求无 CORS 错误、全国列表（240 条）正常持久化。全部通过。
 
 ![订阅卡片](phase4-subscription-card.png)
+![官方预警横幅](phase4-official-warning.png)
 
 ### 5.3 构建
 
@@ -197,7 +209,7 @@ markNotified() 记录去重键
 
 ## 七、已知限制
 
-1. **官方气象预警**：Open-Meteo 免费 API 不提供官方预警数据（已实测确认），当前预警为数据推导的提示级（watch/advisory），非气象部门发布的官方预警。如需官方预警，应接入国家预警信息发布中心（nmc.cn）或和风/彩云等商业 API，属后续阶段。
+1. **官方预警数据源性质**：官方预警来自中央气象台官网的公开接口（`nmc.cn/rest/findAlarm`），非正式开放 API——实测免费、无需密钥、带 CORS 头，但无 SLA，接口结构可能变动（代码已做字段校验与失败兜底）。城市匹配基于标题文本（城市名/省份名包含匹配），极端情况下可能误配或漏配。仅覆盖中国境内；海外城市无官方预警。数据推导的 watch 级提示保留为官方预警之外的补充。
 2. **Web 通知送达**：受浏览器限制，页面关闭后 Web 通知即停止（对话框与设置中均已明示）；Android 安装版无此限制。
 3. **空气质量为 CAMS 模式数据**：Open-Meteo AQ 是再分析/预报融合的模式数据，与监测站实测存在偏差，页面已标注"仅供参考"。中国大陆用户看到的 US AQI 与当地发布的 AQI 可能不同。
 4. **Android 通知时区**：原生每日调度按**设备本地时间**的 HH:MM 触发，若设备时区与订阅城市时区不同会有偏差；应用前台时由 JS 调度器按城市时间补发候选通知。多城市跨时区精准调度需改为计算下次触发时间戳的原生调度（后续优化）。
