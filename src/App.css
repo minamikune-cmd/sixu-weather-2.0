@@ -232,7 +232,7 @@ svg { flex-shrink: 0; }
 .sun-arc-card, .daylight-note { padding: 24px; border: 1px solid var(--line); border-radius: var(--radius-medium); background: var(--surface); backdrop-filter: blur(18px); }
 .sun-arc-heading { display: flex; justify-content: space-between; align-items: center; font-size: 12px; color: var(--text-muted); }
 .sun-arc-heading strong { color: var(--text); font-weight: 450; font-variant-numeric: tabular-nums; }
-.sun-arc-card svg { display: block; width: 100%; margin-top: 12px; }
+.sun-arc-card > svg { display: block; width: 100%; margin-top: 12px; }
 .sun-arc-base { fill: none; stroke: var(--line); stroke-width: 1.5; stroke-dasharray: 3 4; }
 .sun-arc-progress { fill: none; stroke: url(#sunArcGradient); stroke-width: 2; stroke-linecap: round; }
 .sun-arc-horizon { stroke: var(--line); }
