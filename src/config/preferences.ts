@@ -20,6 +20,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   windUnit: 'kmh',
   season: 'auto',
   animations: true,
+  haptics: true,
   visualStyle: 'scene',
 }
 

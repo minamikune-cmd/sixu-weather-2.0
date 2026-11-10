@@ -15,6 +15,8 @@ interface Particle {
   rotation: number; spin: number; opacity: number; type: string
 }
 
+// 动态天气背景：CSS 层（光晕/云/雾/雨幕/日芒/地面）+ Canvas 粒子（雨雪星尘/闪电）。
+// 所有运动层均由 .animations-off 与 prefers-reduced-motion 全局暂停，见 App.css。
 export default function Atmosphere({ season, phase, kind, animations, temperature, windSpeed }: Props) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
@@ -129,6 +131,7 @@ export default function Atmosphere({ season, phase, kind, animations, temperatur
         }
       }
       context.globalAlpha = 1
+      // 闪电：低亮度短闪 + 长间隔，避免强烈闪烁。
       if (kind === 'thunder' && now > lightningAt) {
         flashUntil = now + 90
         lightningAt = now + 10000 + Math.random() * 9000
@@ -157,15 +160,28 @@ export default function Atmosphere({ season, phase, kind, animations, temperatur
     }
   }, [season, phase, kind, animations, temperature, windSpeed])
 
+  const foggy = kind === 'fog' || kind === 'overcast' || (season === 'winter' && temperature < 4)
+  const rainy = kind === 'rain' || kind === 'thunder'
+  const sunny = kind === 'clear' && phase === 'day'
+
   return (
     <div className="atmosphere" aria-hidden="true">
       <div className="sky-aurora" />
+      {sunny && <div className="sun-rays" />}
       <div className="cloud cloud-one" />
       <div className="cloud cloud-two" />
       <div className="cloud cloud-three" />
-      {(kind === 'fog' || kind === 'overcast' || (season === 'winter' && temperature < 4)) && <div className="mist" />}
+      {kind === 'thunder' && <div className="storm-shelf" />}
+      {rainy && <div className="rain-veil" />}
+      {foggy && (
+        <>
+          <div className="mist mist-far" />
+          <div className="mist mist-near" />
+        </>
+      )}
       {kind === 'clear' && season === 'summer' && phase === 'day' && temperature >= 28 && animations && <div className="heat-haze" />}
       <canvas ref={canvasRef} className="weather-canvas" />
+      {rainy && <div className="water-shimmer" />}
       <div className="landscape landscape-back" />
       <div className="landscape landscape-front" />
     </div>

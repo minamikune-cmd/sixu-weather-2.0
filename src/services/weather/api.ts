@@ -24,6 +24,7 @@ export async function fetchJson<T>(url: string, timeout = 12000, signal?: AbortS
   } catch (error) {
     if (error instanceof DOMException && error.name === 'AbortError') throw new Error('请求超时，请检查网络后重试。')
     if (!navigator.onLine) throw new Error('当前网络已断开，正在尝试使用缓存数据。')
+    if (error instanceof TypeError) throw new Error('网络连接异常，请稍后重试。')
     throw error
   } finally {
     window.clearTimeout(timer)

@@ -2,6 +2,7 @@ import { Check, RotateCcw, X } from 'lucide-react'
 import { DEFAULT_PREFERENCES } from '../../config/preferences'
 import { seasonNames } from '../../domain/seasons'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
+import { lightHaptic } from '../../platform/haptics'
 import type { Preferences, Season, VisualStyle } from '../../types/weather'
 
 interface Props {
@@ -52,9 +53,9 @@ export default function SettingsDialog({ open, preferences, onChange, onClose, o
           </div>
         </div>
         <div className="setting-group">
-          <div className="setting-label"><strong>视觉风格</strong><span>与场景协调，也可固定浅色或深色</span></div>
-          <div className="segmented-control three">
-            {([['scene', '跟随场景'], ['light', '浅色'], ['dark', '深色']] as [VisualStyle, string][]).map(([value, label]) => (
+          <div className="setting-label"><strong>视觉风格</strong><span>跟随系统时随设备深浅色自动切换</span></div>
+          <div className="segmented-control four">
+            {([['scene', '跟随场景'], ['system', '跟随系统'], ['light', '浅色'], ['dark', '深色']] as [VisualStyle, string][]).map(([value, label]) => (
               <button type="button" key={value} className={preferences.visualStyle === value ? 'active' : ''} onClick={() => update('visualStyle', value)}>{label}</button>
             ))}
           </div>
@@ -62,6 +63,10 @@ export default function SettingsDialog({ open, preferences, onChange, onClose, o
         <div className="setting-row">
           <div><strong>环境动画</strong><span>关闭后保留静态场景；系统减少动态效果设置优先</span></div>
           <button type="button" role="switch" aria-checked={preferences.animations} className={`switch ${preferences.animations ? 'is-on' : ''}`} onClick={() => update('animations', !preferences.animations)}><span /></button>
+        </div>
+        <div className="setting-row">
+          <div><strong>触觉反馈</strong><span>Android 设备上操作时轻微振动；桌面端无效果</span></div>
+          <button type="button" role="switch" aria-checked={preferences.haptics} className={`switch ${preferences.haptics ? 'is-on' : ''}`} onClick={() => { update('haptics', !preferences.haptics); lightHaptic(!preferences.haptics) }}><span /></button>
         </div>
         <div className="storage-note">
           <strong>本地存储说明</strong>

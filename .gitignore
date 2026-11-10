@@ -36,3 +36,7 @@ npm-debug.log*
 yarn-debug.log*
 pnpm-debug.log*
 *.log
+.pw-browsers/
+.gradle/
+.fonts/
+.xdg/

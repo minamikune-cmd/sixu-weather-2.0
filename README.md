@@ -87,6 +87,8 @@ sixu-weather/
 ├── resources/                   # 应用图标与启动屏矢量源
 ├── capacitor.config.ts          # Capacitor 配置（appId/应用名/启动屏）
 ├── docs/reports/phase-2-architecture.md  # 2.0 架构交付文档
+├── docs/design-system.md              # 阶段 3 设计系统（令牌/主题/组件/动效）
+├── docs/reports/phase-3-visual-system.md  # 阶段 3 视觉系统重构报告（截图+性能）
 ├── .gitignore
 ├── eslint.config.js
 ├── index.html                   # HTML 入口与中文元信息

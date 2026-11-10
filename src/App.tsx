@@ -18,6 +18,7 @@ import { ROUTES } from './pages/routes'
 import { ALL_KEYS, LOCATION_NOTICE_KEY } from './config/keys'
 import { DEFAULT_CITY, DEFAULT_PREFERENCES, loadPreferences, loadSavedCity, saveCity, savePreferences } from './config/preferences'
 import { GeolocationError, getCurrentPosition } from './platform/geolocation'
+import { lightHaptic, watchReducedMotion } from './platform/haptics'
 import { isOnline, onNetworkChange } from './platform/network'
 import { registerBackConsumer } from './platform/backButton'
 import { readStorage, removeStorage, writeStorage } from './platform/storage'
@@ -51,6 +52,22 @@ export default function App() {
     const timer = window.setInterval(() => setNow(new Date()), 1000)
     return () => window.clearInterval(timer)
   }, [])
+
+  // 跟随系统深浅色：监听系统主题变化，并同步减少动态效果缓存。
+  const [systemDark, setSystemDark] = useState(() => window.matchMedia('(prefers-color-scheme: dark)').matches)
+  useEffect(() => {
+    const query = window.matchMedia('(prefers-color-scheme: dark)')
+    const onChange = () => setSystemDark(query.matches)
+    query.addEventListener('change', onChange)
+    const stopReducedWatch = watchReducedMotion()
+    return () => {
+      query.removeEventListener('change', onChange)
+      stopReducedWatch()
+    }
+  }, [])
+
+  // 统一的轻触觉反馈入口（Android 振动 / Web 静默降级）。
+  const haptic = useCallback(() => lightHaptic(preferences.haptics), [preferences.haptics])
 
   useEffect(() => {
     if (!toast) return
@@ -94,12 +111,12 @@ export default function App() {
   const season = preferences.season === 'auto' ? automaticSeason : preferences.season
   const phase = data ? getDayPhase(data) : 'day'
   const kind = data ? weatherKind(data.current.weatherCode) : 'clear'
-  const styleClass = resolveStyleClass(preferences, phase)
+  const styleClass = resolveStyleClass(preferences, phase, systemDark)
 
   // 暗色场景同步 Android 状态栏文字颜色（Web 端为空操作）。
   useEffect(() => {
-    setStatusBarDark(isDarkChrome(preferences, phase))
-  }, [preferences, phase])
+    setStatusBarDark(isDarkChrome(preferences, phase, systemDark))
+  }, [preferences, phase, systemDark])
 
   const showToast = useCallback((message: string) => setToast(message), [])
 
@@ -109,7 +126,8 @@ export default function App() {
     setRecent((previous) => pushRecent(previous, nextCity))
     setCityOpen(false)
     setLocationDenied(false)
-  }, [])
+    haptic()
+  }, [haptic])
 
   const requestLocation = useCallback(async () => {
     setLocationNotice(false)
@@ -138,7 +156,8 @@ export default function App() {
       showToast(added ? `已收藏${target.name}` : `已取消收藏${target.name}`)
       return next
     })
-  }, [showToast])
+    haptic()
+  }, [showToast, haptic])
 
   const updatePreferences = useCallback((next: Preferences) => {
     setPreferences(next)
@@ -179,9 +198,9 @@ export default function App() {
           {ROUTES.map((route) => <a key={route.id} href={route.hash}>{route.label}</a>)}
         </nav>
         <div className="header-actions">
-          <button type="button" className="city-trigger" onClick={() => setCityOpen(true)}><MapPin size={17} /><span>{city.name}</span><Search size={15} /></button>
-          <button type="button" className={`icon-button header-icon ${locating ? 'is-loading' : ''}`} onClick={() => void requestLocation()} disabled={locating} aria-label="定位当前位置"><LocateFixed size={19} /></button>
-          <button type="button" className="icon-button header-icon" onClick={() => setSettingsOpen(true)} aria-label="打开设置"><Settings size={19} /></button>
+          <button type="button" className="city-trigger" onClick={() => { haptic(); setCityOpen(true) }}><MapPin size={17} /><span>{city.name}</span><Search size={15} /></button>
+          <button type="button" className={`icon-button header-icon ${locating ? 'is-loading' : ''}`} onClick={() => { haptic(); void requestLocation() }} disabled={locating} aria-label="定位当前位置"><LocateFixed size={19} /></button>
+          <button type="button" className="icon-button header-icon" onClick={() => { haptic(); setSettingsOpen(true) }} aria-label="打开设置"><Settings size={19} /></button>
         </div>
       </header>
 
@@ -208,8 +227,8 @@ export default function App() {
           season={season}
           phase={phase}
           kind={kind}
-          onRefresh={() => void refresh()}
-          onOpenCity={() => setCityOpen(true)}
+          onRefresh={() => { haptic(); void refresh() }}
+          onOpenCity={() => { haptic(); setCityOpen(true) }}
           onToggleFavorite={() => handleToggleFavorite(city)}
         />
       </main>

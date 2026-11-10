@@ -3,7 +3,7 @@ export type SeasonPreference = 'auto' | Season
 export type DayPhase = 'dawn' | 'day' | 'dusk' | 'night'
 export type TemperatureUnit = 'c' | 'f'
 export type WindUnit = 'kmh' | 'ms'
-export type VisualStyle = 'scene' | 'light' | 'dark'
+export type VisualStyle = 'scene' | 'system' | 'light' | 'dark'
 export type WeatherKind = 'clear' | 'cloud' | 'overcast' | 'rain' | 'thunder' | 'snow' | 'fog'
 
 export interface City {
@@ -22,6 +22,7 @@ export interface Preferences {
   windUnit: WindUnit
   season: SeasonPreference
   animations: boolean
+  haptics: boolean
   visualStyle: VisualStyle
 }
 
