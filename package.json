@@ -9,13 +9,12 @@
     "build": "tsc -b && vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=sixu-weather"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=sixu-weather-2-0"
   },
   "dependencies": {
     "lucide-react": "^0.562.0",
     "react": "^19.2.0",
-    "react-dom": "^19.2.0",
-    "react-router": "^7.6.1"
+    "react-dom": "^19.2.0"
   },
   "devDependencies": {
     "@eslint/js": "^9.39.1",

@@ -3,12 +3,43 @@ import { fetchWeather } from '../lib/weather'
 import type { City, WeatherData } from '../types/weather'
 
 const CACHE_TTL = 10 * 60 * 1000
-const DATA_KEY = 'sixu-weather-data-v1'
-const CITY_KEY = 'sixu-city-v1'
+export const DATA_KEY = 'sixu-weather-data-v1'
+export const CITY_KEY = 'sixu-city-v1'
+// Keep at most this many cities in the offline cache; oldest entries are evicted.
+const CACHE_LIMIT = 8
 
 interface CachedWeather {
   city: City
   data: WeatherData
+}
+
+// New format: a map keyed by city id so every recently viewed city has its own
+// cache entry. The 1.0 format was a single { city, data } object; it is
+// migrated transparently on first read.
+type WeatherCache = Record<string, CachedWeather>
+
+function readCache(): WeatherCache {
+  const stored = readJson<unknown>(DATA_KEY)
+  if (!stored || typeof stored !== 'object') return {}
+  if ('city' in stored && 'data' in stored) {
+    const legacy = stored as CachedWeather
+    return legacy.city?.id ? { [legacy.city.id]: legacy } : {}
+  }
+  return stored as WeatherCache
+}
+
+function writeCache(cache: WeatherCache) {
+  const entries = Object.values(cache)
+    .filter((entry) => entry.city?.id && entry.data)
+    .sort((a, b) => b.data.fetchedAt - a.data.fetchedAt)
+    .slice(0, CACHE_LIMIT)
+  writeJson(DATA_KEY, Object.fromEntries(entries.map((entry) => [entry.city.id, entry])))
+}
+
+export function saveWeather(city: City, data: WeatherData) {
+  const cache = readCache()
+  cache[city.id] = { city, data }
+  writeCache(cache)
 }
 
 function readJson<T>(key: string): T | null {
@@ -33,8 +64,8 @@ export function getSavedCity(fallback: City): City {
 }
 
 export function getCachedWeather(cityId: string): CachedWeather | null {
-  const cached = readJson<CachedWeather>(DATA_KEY)
-  return cached?.city.id === cityId ? cached : null
+  const entry = readCache()[cityId]
+  return entry ?? null
 }
 
 export function saveCity(city: City) {
@@ -69,7 +100,7 @@ export function useWeather(city: City) {
     setError(null)
     try {
       const result = await fetchWeather(city, controller.signal)
-      writeJson(DATA_KEY, { city, data: result } satisfies CachedWeather)
+      saveWeather(city, result)
       setData(result)
       setFromCache(false)
     } catch (requestError) {
@@ -79,6 +110,8 @@ export function useWeather(city: City) {
         setFromCache(true)
         setError('实时数据暂时不可用，已显示上次缓存。')
       } else {
+        // Keep whatever is on screen (the effect above already cleared stale
+        // data when the city changed); only surface the error.
         setError(requestError instanceof Error ? requestError.message : '天气加载失败，请稍后重试。')
       }
     } finally {
@@ -101,6 +134,9 @@ export function useWeather(city: City) {
       setError(null)
       return
     }
+    // Never keep the previous city's weather on screen while the new one loads.
+    setData(cached?.data ?? null)
+    setFromCache(false)
     void load()
     return () => activeRequest.current?.abort()
   }, [city, load])

@@ -96,7 +96,7 @@ sixu-weather/
 # 在仓库根目录执行
 npm ci
 
-# 开发服务器，终端会显示本地地址，默认 http://localhost:5173
+# 开发服务器，终端会显示本地地址，默认 http://localhost:3000
 npm run dev
 
 # 类型检查与生产构建
@@ -142,7 +142,7 @@ git push -u origin main
 7. 点击 **Save and Deploy**。首次部署完成后访问 `https://<项目名>.pages.dev`。
 8. 后续推送到 `main` 自动更新生产环境；其他分支通常生成预览部署。
 
-`wrangler.toml` 中项目名是 `sixu-weather`。如 Git 集成时使用其他 Pages 项目名，请同步修改该文件和 `package.json` 的 `deploy` 命令。
+`wrangler.toml` 中项目名是 `sixu-weather-2-0`。如 Git 集成时使用其他 Pages 项目名，请同步修改该文件和 `package.json` 的 `deploy` 命令。
 
 ### 5.3 自定义域名、HTTPS 与更新
 
@@ -164,10 +164,10 @@ npm run build
 npx wrangler login
 
 # 首次创建 Direct Upload 项目
-npx wrangler pages project create sixu-weather --production-branch=main
+npx wrangler pages project create sixu-weather-2-0 --production-branch=main
 
 # 部署 dist 文件夹
-npx wrangler pages deploy dist --project-name=sixu-weather
+npx wrangler pages deploy dist --project-name=sixu-weather-2-0
 
 # 也可使用项目脚本（会先构建）
 npm run deploy

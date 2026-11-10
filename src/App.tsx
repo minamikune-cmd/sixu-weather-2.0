@@ -11,7 +11,7 @@ import HourlyForecast from './components/HourlyForecast'
 import SettingsDialog from './components/SettingsDialog'
 import SunArc from './components/SunArc'
 import WeatherIcon from './components/WeatherIcon'
-import { getSavedCity, saveCity, useWeather } from './hooks/useWeather'
+import { getSavedCity, saveCity, useWeather, DATA_KEY, CITY_KEY } from './hooks/useWeather'
 import {
   DEFAULT_CITY, DEFAULT_PREFERENCES, formatTemperature, formatWind, getCityParts,
   getDayPhase, getSeason, localTimeFromIso, reverseGeocode, seasonNames, uvDescription,
@@ -131,19 +131,24 @@ export default function App() {
   const closeSettingsDialog = useCallback(() => setSettingsOpen(false), [])
 
   const clearData = () => {
-    ;['sixu-weather-data-v1', 'sixu-city-v1', PREFERENCES_KEY, FAVORITES_KEY, RECENT_KEY].forEach((key) => localStorage.removeItem(key))
+    ;[DATA_KEY, CITY_KEY, PREFERENCES_KEY, FAVORITES_KEY, RECENT_KEY, LOCATION_NOTICE_KEY].forEach((key) => localStorage.removeItem(key))
     setFavorites([])
     setRecent([])
     setPreferences(DEFAULT_PREFERENCES)
     setCity(DEFAULT_CITY)
     saveCity(DEFAULT_CITY)
+    setLocationNotice(true)
     setSettingsOpen(false)
     setToast('本地数据已清除，已恢复默认城市与偏好。')
   }
 
-  const timeZone = data?.timezone ?? city.timezone ?? 'Asia/Shanghai'
-  const local = getCityParts(timeZone, now)
-  const month = Number(local.month)
+  // Reverse-geocoded and coordinate-searched cities carry no IANA timezone.
+  // Don't guess (the old hardcoded Asia/Shanghai fallback could show a wrong
+  // clock for non-China locations); wait for the weather response, which
+  // always includes the city's real timezone.
+  const timeZone = data?.timezone ?? city.timezone ?? null
+  const local = timeZone ? getCityParts(timeZone, now) : null
+  const month = Number(local?.month ?? new Date().getMonth() + 1)
   const automaticSeason = getSeason(month, city.latitude)
   const season = preferences.season === 'auto' ? automaticSeason : preferences.season
   const phase = data ? getDayPhase(data) : 'day'
@@ -152,8 +157,8 @@ export default function App() {
   const styleClass = preferences.visualStyle === 'scene' ? (phase === 'night' || phase === 'dusk' ? 'style-dark' : 'style-scene') : `style-${preferences.visualStyle}`
   const today = data?.daily[0]
   const uv = data?.hourly[0]?.uvIndex ?? today?.uvIndexMax ?? 0
-  const updatedAt = data ? new Intl.DateTimeFormat('zh-CN', { timeZone, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(data.fetchedAt) : '--:--'
-  const currentHour = useMemo(() => `${local.year}-${local.month}-${local.day}`, [local.year, local.month, local.day])
+  const updatedAt = data ? new Intl.DateTimeFormat('zh-CN', { timeZone: timeZone ?? undefined, hour: '2-digit', minute: '2-digit', hourCycle: 'h23' }).format(data.fetchedAt) : '--:--'
+  const currentHour = useMemo(() => local ? `${local.year}-${local.month}-${local.day}` : '', [local])
   const todaySolar = data?.daily.find((day) => day.date === currentHour) ?? today
 
   return (
@@ -195,8 +200,17 @@ export default function App() {
             <section className="hero page-shell" id="overview">
               <div className="hero-meta">
                 <div className="place-line"><span className="live-dot" />{city.country || '当前位置'} · {city.admin1 || city.name}</div>
-                <div className="local-clock" aria-label={`当地时间${local.hour}时${local.minute}分${local.second}秒`}><span>{local.hour}:{local.minute}</span><small>:{local.second}</small></div>
-                <p>{local.year} 年 {Number(local.month)} 月 {Number(local.day)} 日 · {local.weekday} · {timeZone.replace(/_/g, ' ')}</p>
+                {local && timeZone ? (
+                  <>
+                    <div className="local-clock" aria-label={`当地时间${local.hour}时${local.minute}分${local.second}秒`}><span>{local.hour}:{local.minute}</span><small>:{local.second}</small></div>
+                    <p>{local.year} 年 {Number(local.month)} 月 {Number(local.day)} 日 · {local.weekday} · {timeZone.replace(/_/g, ' ')}</p>
+                  </>
+                ) : (
+                  <>
+                    <div className="local-clock" aria-label="正在校准当地时区"><span>--:--</span></div>
+                    <p>正在校准当地时区…</p>
+                  </>
+                )}
               </div>
 
               <div className="hero-grid">

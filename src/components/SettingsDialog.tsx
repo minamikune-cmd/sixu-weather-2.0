@@ -1,5 +1,5 @@
-import { useEffect } from 'react'
 import { Check, RotateCcw, X } from 'lucide-react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 import { DEFAULT_PREFERENCES, seasonNames } from '../lib/weather'
 import type { Preferences, Season, VisualStyle } from '../types/weather'
 
@@ -12,24 +12,14 @@ interface Props {
 }
 
 export default function SettingsDialog({ open, preferences, onChange, onClose, onClearData }: Props) {
-  useEffect(() => {
-    if (!open) return
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = previous
-      window.removeEventListener('keydown', onKey)
-    }
-  }, [open, onClose])
+  const dialogRef = useDialogFocus(open, onClose)
 
   if (!open) return null
   const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) => onChange({ ...preferences, [key]: value })
 
   return (
     <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <section className="dialog settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+      <section ref={dialogRef} className="dialog settings-dialog" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabIndex={-1}>
         <header className="dialog-header">
           <div><span className="section-kicker">PREFERENCES</span><h2 id="settings-title">让天空合你心意</h2></div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭设置"><X size={21} /></button>

@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Clock3, LocateFixed, MapPin, Navigation, Search, Star, X } from 'lucide-react'
+import { useDialogFocus } from '../hooks/useDialogFocus'
 import { searchCities } from '../lib/weather'
 import type { City } from '../types/weather'
 
@@ -20,22 +21,13 @@ export default function CityDialog({ open, current, favorites, recent, onClose, 
   const [results, setResults] = useState<City[]>([])
   const [searching, setSearching] = useState(false)
   const [message, setMessage] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
   const abortRef = useRef<AbortController | null>(null)
+  const dialogRef = useDialogFocus(open, onClose, '.search-field input')
 
   useEffect(() => {
     if (!open) return
-    const previous = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    window.setTimeout(() => inputRef.current?.focus(), 80)
-    const onKey = (event: KeyboardEvent) => { if (event.key === 'Escape') onClose() }
-    window.addEventListener('keydown', onKey)
-    return () => {
-      document.body.style.overflow = previous
-      window.removeEventListener('keydown', onKey)
-      abortRef.current?.abort()
-    }
-  }, [open, onClose])
+    return () => { abortRef.current?.abort() }
+  }, [open])
 
   useEffect(() => {
     const value = query.trim()
@@ -100,14 +92,14 @@ export default function CityDialog({ open, current, favorites, recent, onClose, 
 
   return (
     <div className="modal-backdrop" onMouseDown={(event) => { if (event.target === event.currentTarget) onClose() }}>
-      <section className="dialog city-dialog" role="dialog" aria-modal="true" aria-labelledby="city-dialog-title">
+      <section ref={dialogRef} className="dialog city-dialog" role="dialog" aria-modal="true" aria-labelledby="city-dialog-title" tabIndex={-1}>
         <header className="dialog-header">
           <div><span className="section-kicker">PLACES</span><h2 id="city-dialog-title">你想看哪里的天空？</h2></div>
           <button type="button" className="icon-button" onClick={onClose} aria-label="关闭城市搜索"><X size={21} /></button>
         </header>
         <div className="search-field">
           <Search size={20} />
-          <input ref={inputRef} value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索城市，或输入纬度, 经度" aria-label="搜索城市或经纬度" />
+          <input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="搜索城市，或输入纬度, 经度" aria-label="搜索城市或经纬度" />
           {query && <button type="button" className="clear-search" onClick={() => setQuery('')} aria-label="清空搜索"><X size={17} /></button>}
         </div>
         <button type="button" className="locate-row" onClick={onLocate} disabled={locating}>
