@@ -23,6 +23,8 @@ import { DEFAULT_CITY, DEFAULT_PREFERENCES, loadPreferences, loadSavedCity, save
 import { GeolocationError, getCurrentPosition } from './platform/geolocation'
 import { lightHaptic, watchReducedMotion } from './platform/haptics'
 import { isOnline, onNetworkChange } from './platform/network'
+import { onNotificationTap } from './platform/notifications'
+import { consumePushTapPayload, getPushToken } from './platform/push'
 import { registerBackConsumer } from './platform/backButton'
 import { readStorage, removeStorage, writeStorage } from './platform/storage'
 import { setStatusBarDark } from './platform/statusBar'
@@ -52,6 +54,8 @@ export default function App() {
   const [locating, setLocating] = useState(false)
   const [offline, setOffline] = useState(false)
   const [toast, setToast] = useState('')
+  // FCM 注册令牌：仅在原生端且已配置 google-services.json 时存在，用于用户复制到自建推送后端。
+  const [pushToken, setPushToken] = useState<string | null>(null)
   const [now, setNow] = useState(new Date())
   const { data, loading, refreshing, error, fromCache, refresh } = useWeather(city)
   const { warnings, refresh: refreshWarnings } = useWarnings(city)
@@ -117,6 +121,32 @@ export default function App() {
   useEffect(() => {
     return startNotificationScheduler((message) => setToast(message))
   }, [])
+
+  // FCM 令牌读取（仅原生端；未配置推送时静默为 null）。
+  useEffect(() => {
+    void getPushToken().then(setPushToken)
+  }, [])
+
+  // 通知点击跳转：打开（或回到）通知所属订阅的城市天气页。
+  useEffect(() => {
+    const jumpToTarget = (payload: { subscriptionId?: string; cityId?: string }) => {
+      const subscription = subscriptions.find((item) => item.id === payload.subscriptionId)
+      const target = subscription
+        ? subscription.city
+        : [city, ...favorites, ...recent].find((item) => item.id === payload.cityId)
+      if (target) {
+        setCity(target)
+        saveCity(target)
+      }
+      document.getElementById('overview')?.scrollIntoView({ behavior: 'smooth' })
+    }
+    const unsubscribe = onNotificationTap(jumpToTarget)
+    // FCM 通知点击唤起应用时，原生侧暂存的跳转载荷在此消费一次。
+    void consumePushTapPayload().then((payload) => {
+      if (payload.subscriptionId || payload.cityId) jumpToTarget(payload)
+    })
+    return unsubscribe
+  }, [subscriptions, city, favorites, recent])
 
   const timeZone = data?.timezone ?? city.timezone ?? null
   const local = timeZone ? getCityParts(timeZone, now) : null
@@ -265,7 +295,7 @@ export default function App() {
       </nav>
 
       <CityDialog open={cityOpen} current={city} favorites={favorites} recent={recent} onClose={closeCityDialog} onSelect={selectCity} onToggleFavorite={handleToggleFavorite} onLocate={() => void requestLocation()} locating={locating} />
-      <SettingsDialog open={settingsOpen} preferences={preferences} onChange={updatePreferences} onClose={closeSettingsDialog} onClearData={clearData} />
+      <SettingsDialog open={settingsOpen} preferences={preferences} pushToken={pushToken} onChange={updatePreferences} onClose={closeSettingsDialog} onClearData={clearData} />
       <SubscriptionsDialog
         open={subscriptionsOpen}
         subscriptions={subscriptions}

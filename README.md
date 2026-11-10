@@ -89,6 +89,8 @@ sixu-weather/
 ├── docs/reports/phase-2-architecture.md  # 2.0 架构交付文档
 ├── docs/design-system.md              # 阶段 3 设计系统（令牌/主题/组件/动效）
 ├── docs/reports/phase-3-visual-system.md  # 阶段 3 视觉系统重构报告（截图+性能）
+├── docs/android/                    # 阶段 5：通知/权限/构建签名/测试报告
+├── docs/reports/phase-5-android-integration.md  # 阶段 5 Android 集成总报告
 ├── .gitignore
 ├── eslint.config.js
 ├── index.html                   # HTML 入口与中文元信息
@@ -122,6 +124,22 @@ npm run android:build
 ```
 
 工具链：AGP 9.5.1 · Gradle 9.8.2（wrapper 已固定）· compileSdk/targetSdk 37 · minSdk 24。CI 中 Web 与 Android 构建并行（`.github/workflows/ci.yml`）。架构细节与兼容性清单见 [docs/reports/phase-2-architecture.md](docs/reports/phase-2-architecture.md)。
+
+### 4.0.1 Android 原生能力（阶段 5）
+
+- **通知**：三渠道分类管理（每日天气 / 天气提醒 / 天气预警）；每日通知走 AlarmManager 精确调度（杀进程仍送达）；降雨提醒与官方预警由订阅评估引擎驱动；通知点击按订阅城市跳转。远程推送集成 Firebase Cloud Messaging（真实推送服务），未配置 `google-services.json` 时自动降级。后台定时方案评估（精确闹钟 vs WorkManager vs FCM）见 [docs/android/notifications.md](docs/android/notifications.md)。
+- **权限**：INTERNET、定位（前台一次）、通知（13+）、精确闹钟、开机恢复——最小化集，见 [docs/android/permissions.md](docs/android/permissions.md)。
+- **安全**：全 HTTPS、Manifest 显式禁用明文流量、WebView 不开调试、客户端零 API 密钥。
+- **构建产物**：
+
+  ```bash
+  npm run android:build                              # Debug APK（debug 签名，可直接安装）
+  cd android && ./gradlew :app:assembleRelease       # Release APK
+  cd android && ./gradlew :app:bundleRelease         # AAB（Play 上架格式）
+  ```
+
+  发布签名：复制 `android/keystore.properties.template` 为 `android/keystore.properties` 并填入**本地生成**的 keystore 信息（keystore 与密码绝不提交 GitHub），详见 [docs/android/build-and-signing.md](docs/android/build-and-signing.md)。
+- **测试报告**：构建与静态核验结果 + 真机手动测试协议见 [docs/android/device-test-report.md](docs/android/device-test-report.md)；阶段 5 总报告见 [docs/reports/phase-5-android-integration.md](docs/reports/phase-5-android-integration.md)。
 
 ### 4.1 Web 开发
 

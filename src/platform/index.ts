@@ -3,6 +3,7 @@
 import { initStorage } from './storage'
 import { configureStatusBar } from './statusBar'
 import { registerBackHandler } from './backButton'
+import { ensureNotificationChannels } from './notifications'
 import { isNative } from './native'
 
 export { isNative, isAndroid, isWeb, platformName } from './native'
@@ -14,5 +15,7 @@ export async function initPlatform(): Promise<void> {
   if (isNative) {
     configureStatusBar()
     registerBackHandler()
+    // 幂等注册通知渠道（每日天气/天气提醒/天气预警），供本地通知与 FCM 共用。
+    void ensureNotificationChannels()
   }
 }

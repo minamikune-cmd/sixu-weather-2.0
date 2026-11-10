@@ -1,15 +1,30 @@
 apply plugin: 'com.android.application'
 
+// 发布签名：由用户在 android/keystore.properties 中安全提供（已 gitignore，绝不入库）。
+// 文件不存在时 release 构建产出未签名产物，仅用于验证流水线。
+def keystorePropertiesFile = rootProject.file('keystore.properties')
+def keystoreProperties = new Properties()
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(new FileInputStream(keystorePropertiesFile))
+}
+
+// FCM 远程推送仅在用户配置 google-services.json 后启用（已 gitignore）。
+def hasGoogleServices = file('google-services.json').exists()
+
 android {
     namespace = "com.minamikune.sixuweather"
     compileSdk = rootProject.ext.compileSdkVersion
     buildToolsVersion = "37.0.0"
+    buildFeatures {
+        buildConfig true
+    }
     defaultConfig {
         applicationId "com.minamikune.sixuweather"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
         versionName "1.0"
+        buildConfigField "boolean", "FCM_ENABLED", String.valueOf(hasGoogleServices)
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
@@ -25,12 +40,24 @@ android {
             keyAlias 'androiddebugkey'
             keyPassword 'android'
         }
+        release {
+            if (keystorePropertiesFile.exists()) {
+                storeFile file(keystoreProperties['storeFile'])
+                storePassword keystoreProperties['storePassword']
+                keyAlias keystoreProperties['keyAlias']
+                keyPassword keystoreProperties['keyPassword']
+            }
+        }
     }
     buildTypes {
         debug {
             signingConfig signingConfigs.debug
         }
         release {
+            // 未提供 keystore.properties 时不签名：产出未签名 APK/AAB，验证流水线后由用户签名。
+            if (keystorePropertiesFile.exists()) {
+                signingConfig signingConfigs.release
+            }
             minifyEnabled false
             proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
         }
@@ -53,6 +80,9 @@ dependencies {
     androidTestImplementation "androidx.test.ext:junit:$androidxJunitVersion"
     androidTestImplementation "androidx.test.espresso:espresso-core:$androidxEspressoCoreVersion"
     implementation project(':capacitor-cordova-android-plugins')
+    // FCM 远程推送（真实推送服务）。编译不依赖 google-services.json；运行时由 BuildConfig.FCM_ENABLED 守卫。
+    implementation platform('com.google.firebase:firebase-bom:33.12.0')
+    implementation 'com.google.firebase:firebase-messaging'
 }
 
 apply from: 'capacitor.build.gradle'

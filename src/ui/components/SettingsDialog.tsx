@@ -1,4 +1,5 @@
-import { Check, RotateCcw, X } from 'lucide-react'
+import { useState } from 'react'
+import { BellRing, Check, Copy, RotateCcw, X } from 'lucide-react'
 import { DEFAULT_PREFERENCES } from '../../config/preferences'
 import { seasonNames } from '../../domain/seasons'
 import { useDialogFocus } from '../../hooks/useDialogFocus'
@@ -8,13 +9,16 @@ import type { Preferences, Season, VisualStyle } from '../../types/weather'
 interface Props {
   open: boolean
   preferences: Preferences
+  /** FCM 注册令牌；Web 端或未配置推送时为 null，不展示推送区块。 */
+  pushToken: string | null
   onChange: (preferences: Preferences) => void
   onClose: () => void
   onClearData: () => void
 }
 
-export default function SettingsDialog({ open, preferences, onChange, onClose, onClearData }: Props) {
+export default function SettingsDialog({ open, preferences, pushToken, onChange, onClose, onClearData }: Props) {
   const dialogRef = useDialogFocus(open, onClose)
+  const [tokenCopied, setTokenCopied] = useState(false)
 
   if (!open) return null
   const update = <K extends keyof Preferences>(key: K, value: Preferences[K]) => onChange({ ...preferences, [key]: value })
@@ -68,9 +72,23 @@ export default function SettingsDialog({ open, preferences, onChange, onClose, o
           <div><strong>触觉反馈</strong><span>Android 设备上操作时轻微振动；桌面端无效果</span></div>
           <button type="button" role="switch" aria-checked={preferences.haptics} className={`switch ${preferences.haptics ? 'is-on' : ''}`} onClick={() => { update('haptics', !preferences.haptics); lightHaptic(!preferences.haptics) }}><span /></button>
         </div>
+        {pushToken && (
+          <div className="setting-group">
+            <div className="setting-label"><strong>远程推送令牌</strong><span>FCM 注册令牌，复制后供自建推送后端向本设备下发预警</span></div>
+            <div className="push-token-row">
+              <code>{`${pushToken.slice(0, 18)}…${pushToken.slice(-6)}`}</code>
+              <button type="button" className="text-button" onClick={() => {
+                void navigator.clipboard?.writeText(pushToken)
+                setTokenCopied(true)
+                window.setTimeout(() => setTokenCopied(false), 2000)
+              }}>{tokenCopied ? <Check size={15} /> : <Copy size={15} />}{tokenCopied ? '已复制' : '复制'}</button>
+            </div>
+          </div>
+        )}
         <div className="storage-note">
           <strong>本地存储说明</strong>
-          <p>城市、收藏、最近访问、偏好及最近天气缓存仅保存在当前浏览器，不会跨设备同步。清除浏览器数据会将其删除。</p>
+          <p>城市、收藏、最近访问、偏好及最近天气缓存仅保存在当前设备，不会跨设备同步。清除应用数据会将其删除。</p>
+          <p className="privacy-small"><BellRing size={13} />通知在设备本地评估与调度；官方预警来自中央气象台公开接口；远程推送经 FCM，不含位置历史。</p>
           <div className="settings-actions">
             <button type="button" className="text-button" onClick={() => onChange(DEFAULT_PREFERENCES)}><RotateCcw size={15} />恢复默认偏好</button>
             <button type="button" className="text-button danger" onClick={onClearData}>清除本地数据</button>

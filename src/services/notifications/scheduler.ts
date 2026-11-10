@@ -9,8 +9,8 @@ import { getCityParts } from '../../domain/time'
 import type { City, WeatherData } from '../../types/weather'
 import type { NotificationCandidate } from '../../types/subscription'
 import {
-  cancelDailyReminder, deliverNotification, getNotificationPermission, isNative,
-  scheduleDailyReminder,
+  cancelDailyReminder, channelForCandidate, deliverNotification, getNotificationPermission,
+  isNative, scheduleDailyReminder,
 } from '../../platform/notifications'
 import { fetchWeather } from '../weather/api'
 import { fetchWarnings } from '../weather/warnings'
@@ -77,7 +77,7 @@ export function startNotificationScheduler(onError?: (message: string) => void):
         const deliveredKeys = new Set<string>()
         let urgentDelivered = 0
         for (const candidate of candidates.filter(isUrgent)) {
-          if (await deliverNotification(candidate)) {
+          if (await deliverNotification({ ...candidate, channelId: channelForCandidate(candidate) })) {
             markNotified(candidate.dedupeKey)
             deliveredKeys.add(candidate.dedupeKey)
             urgentDelivered += 1
@@ -100,7 +100,7 @@ export function startNotificationScheduler(onError?: (message: string) => void):
 
         let delivered = 0
         for (const candidate of candidates.filter((item) => !deliveredKeys.has(item.dedupeKey))) {
-          if (await deliverNotification(candidate)) {
+          if (await deliverNotification({ ...candidate, channelId: channelForCandidate(candidate) })) {
             markNotified(candidate.dedupeKey)
             delivered += 1
           }
