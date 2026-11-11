@@ -61,4 +61,21 @@ cd android && ./gradlew :app:bundleRelease
 
 ## CI
 
-`.github/workflows/ci.yml` 中 Web 与 Android 构建并行；Android 任务复用同一 gradle 命令，不接触任何签名材料。
+`.github/workflows/ci.yml` 中 Web 与 Android debug 构建并行；`release` job 在 push 到 main 或手动触发时产出 Release APK + AAB，并作为 workflow artifact 上传（Actions run → Artifacts 下载）。
+
+### CI 自动签名（GitHub Secrets，密钥不入库）
+
+密钥材料只存在于仓库 **Settings → Secrets and variables → Actions** 加密存储，不写入任何提交。配置 4 个 secret：
+
+| Secret | 内容 |
+| --- | --- |
+| `RELEASE_KEYSTORE_BASE64` | keystore 的 base64：`base64 -w0 sixu-weather-release.jks`（macOS 去掉 `-w0`） |
+| `RELEASE_STORE_PASSWORD` | keystore 密码 |
+| `RELEASE_KEY_ALIAS` | `sixu-weather` |
+| `RELEASE_KEY_PASSWORD` | 密钥密码 |
+
+配置后 push 到 main，`release` job 自动解码 keystore、生成 `android/keystore.properties`（构建目录内临时文件，gitignore 已覆盖）、执行签名构建，并用 `apksigner verify --print-certs` 在日志中打印证书指纹供核对。
+
+**Secrets 未配置时** job 不会失败：产出未签名 release 产物并输出 `::warning::` 提示，仅作流水线验证。
+
+> 安全边界：secret 值在日志中自动打码；base64 解码与 properties 写入都在 runner 内存/临时目录完成，不进入 git 历史。轮换密钥后同时更新 4 个 secret 即可。
