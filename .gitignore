@@ -17,6 +17,8 @@ android/local.properties
 android/app/google-services.json
 # 发布签名配置由用户安全提供，绝不入库（模板见 android/keystore.properties.template）
 android/keystore.properties
+# keystore 的任何副本/下载残留（如 *_copy_*）同样不入库
+*.jks_*
 
 # Capacitor / Android generated files
 android/.gradle/

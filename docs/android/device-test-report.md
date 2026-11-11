@@ -15,8 +15,8 @@
 | 单元测试 | `npm test`（含数据可靠性 7/7） | ✓ 全部通过 |
 | Capacitor 同步 | `npx cap sync android` | ✓ webDir 正确落入 `android/app/src/main/assets/public` |
 | Debug APK | `gradlew :app:assembleDebug` | ✓ app-debug.apk（debug keystore 签名，可直接安装） |
-| Release APK | `gradlew :app:assembleRelease` | ✓ app-release-unsigned.apk（未配置用户 keystore，按设计产出未签名包） |
-| Release AAB | `gradlew :app:bundleRelease` | ✓ app-release.aab（Play 上架格式） |
+| Release APK | `gradlew :app:assembleRelease` | ✓ app-release.apk，**V2 正式签名**（apksigner 核验，证书 SHA-256 `A7:78:FB:F4:…:8D:7E:80`） |
+| Release AAB | `gradlew :app:bundleRelease` | ✓ app-release.aab（Play 上架格式，jarsigner 核验通过，同一证书） |
 | APK 内容核验 | `unzip -l` | ✓ 内含最新 bundle `index-6Zzq2g72.js`、Firebase Messaging 库、原生渠道/FCM/插件类 |
 | 包信息核验 | `aapt2 dump badging` | ✓ 应用名「四序天气」、包名 `com.minamikune.sixuweather`、targetSdk 37、启动 Activity、权限集合与设计一致、定位硬件声明为 optional |
 | 明文流量 | Manifest 合并结果 | ✓ `android:usesCleartextTraffic="false"` |
@@ -52,6 +52,6 @@
 
 ## 4. 待用户提供 / 配合
 
-1. Release keystore（按 build-and-signing.md 生成，安全渠道传递）→ 产出正式签名 APK/AAB。
+1. ~~Release keystore~~ ✅ 已提供并完成签名（2026-11-11）。
 2. `google-services.json`（Firebase 控制台下载）→ 启用 FCM 真推送。
 3. 一台 Android 8+ 真机执行第 3 节协议（约 15 分钟），结果回填本报告。

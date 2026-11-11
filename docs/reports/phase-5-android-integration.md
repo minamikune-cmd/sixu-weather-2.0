@@ -48,8 +48,8 @@
 | 产物 | 路径 | 状态 |
 | --- | --- | --- |
 | Debug APK | `android/app/build/outputs/apk/debug/app-debug.apk`（10.1 MB） | ✅ 可直接安装 |
-| Release APK | `android/app/build/outputs/apk/release/app-release-unsigned.apk`（4.9 MB） | ⚠️ 未签名（等用户 keystore） |
-| Release AAB | `android/app/build/outputs/bundle/release/app-release.aab`（4.6 MB） | ⚠️ 配置签名后即签名 AAB |
+| Release APK | `android/app/build/outputs/apk/release/app-release.apk`（4.9 MB） | ✅ **用户 keystore 正式签名**（V2，SHA-256 `A7:78:FB:F4:66:41:02:B4:47:23:45:04:E5:8D:25:7F:64:91:26:C3:5D:ED:F9:DF:C7:24:48:1B:60:8D:7E:80`） |
+| Release AAB | `android/app/build/outputs/bundle/release/app-release.aab`（4.6 MB） | ✅ **正式签名**（jarsigner 核验通过，同一证书） |
 
 CI（`.github/workflows/ci.yml`）保留 assembleDebug 门禁；release 构建不接触任何签名材料。
 
@@ -65,6 +65,6 @@ CI（`.github/workflows/ci.yml`）保留 assembleDebug 门禁；release 构建�
 ## 7. 未完成 / 需用户配合（诚实声明）
 
 1. **真机测试未执行**：本环境无模拟器与真机（无 KVM、adb devices 为空）。已完成构建期与静态核验（见测试报告第 1 节）；运行期验证需用户按协议执行。
-2. **正式签名待密钥**：Release APK/AAB 当前未签名。keystore 与密码必须由用户安全提供（`.gitignore` 已排除，绝不提交 GitHub）。
+2. **~~正式签名待密钥~~ ✅ 已完成**：用户提供 keystore 后，Release APK/AAB 已用 V2 方案正式签名（证书 SHA-256 `A7:78:FB:F4:…:8D:7E:80`，apksigner/jarsigner 双核验通过）。keystore、keystore.properties 及其下载残留均经 `.gitignore` 确认不入库。
 3. **FCM 待 google-services.json**：代码已就绪，放入配置文件重装即启用真实推送。
-4. 在完成 2、3 与真机验证前，**不宣称 Android 应用已完成**——当前状态为：构建流水线全通、静态核验全过、待真机确认。
+4. 在完成真机验证前，**不宣称 Android 应用已完成**——当前状态为：构建流水线全通、三产物签名齐备、静态核验全过、待真机确认。

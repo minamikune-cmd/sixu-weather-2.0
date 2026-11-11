@@ -47,6 +47,8 @@ cd android && ./gradlew :app:bundleRelease
 
 未提供 `keystore.properties` 时 release 构建产出**未签名**产物——这是刻意的流水线验证行为，不是可发布包。
 
+> 2026-11-11 状态：用户 keystore 已提供并完成首次正式签名构建。Release APK（V2）与 AAB 经 apksigner / jarsigner 双核验，证书 SHA-256 `A7:78:FB:F4:66:41:02:B4:47:23:45:04:E5:8D:25:7F:64:91:26:C3:5D:ED:F9:DF:C7:24:48:1B:60:8D:7E:80`。
+
 ## 调试 / 正式配置隔离
 
 | 项 | Debug | Release |
