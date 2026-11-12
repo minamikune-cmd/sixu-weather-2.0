@@ -1,9 +1,0 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">
-  <rect width="64" height="64" rx="16" fill="#263b54"/>
-  <g fill="none" stroke="#edf4f2" stroke-width="2.5">
-    <path d="M31 31C15 31 12 22 12 12c10 0 19 3 19 19Z"/>
-    <path d="M33 31c0-16 9-19 19-19 0 10-3 19-19 19Z"/>
-    <path d="M33 33c16 0 19 9 19 19-10 0-19-3-19-19Z"/>
-    <path d="M31 33c0 16-9 19-19 19 0-10 3-19 19-19Z"/>
-  </g>
-</svg>
