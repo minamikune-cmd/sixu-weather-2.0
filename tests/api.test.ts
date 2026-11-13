@@ -105,3 +105,98 @@ export async function runApiTests(): Promise<void> {
     } finally { restore() }
   })
 }
+
+// ── 有界重试策略 ──────────────────────────────────────────
+// 只重试瞬时故障（5xx / 网络 TypeError / 单次超时），最多 1 次；
+// 不重试 429、4xx、已断网；调用方取消时立即停。
+
+export async function runApiRetryTests(): Promise<void> {
+  await test('5xx 首次失败后重试一次并成功', async () => {
+    let calls = 0
+    const restore = mockFetch(() => {
+      calls += 1
+      return calls === 1 ? jsonResponse(503, {}) : jsonResponse(200, { ok: true })
+    })
+    try {
+      const data = await fetchJson<{ ok: boolean }>('https://example.test/x', 1000)
+      assert(data.ok === true, '第二次尝试应成功解析')
+      equal(calls, 2, '应恰好重试一次（共 2 次尝试）')
+    } finally { restore() }
+  })
+
+  await test('5xx 连续失败时只重试一次并抛出含状态码的错误', async () => {
+    let calls = 0
+    const restore = mockFetch(() => { calls += 1; return jsonResponse(503, {}) })
+    try {
+      await fetchJson('https://example.test/x', 1000)
+      assert(false, '应抛出错误')
+    } catch (error) {
+      assert(error instanceof Error && error.message.includes('503'), '错误文案应含状态码 503')
+      equal(calls, 2, '不应无限重试')
+    } finally { restore() }
+  })
+
+  await test('网络 TypeError 重试一次后仍失败：提示网络连接异常', async () => {
+    let calls = 0
+    const restore = mockFetch(() => { calls += 1; return Promise.reject(new TypeError('fetch failed')) })
+    const restoreOnline = setOnline(true)
+    try {
+      await fetchJson('https://example.test/x', 1000)
+      assert(false, '应抛出错误')
+    } catch (error) {
+      assert(error instanceof Error && error.message.includes('网络连接异常'), '保持原有文案')
+      equal(calls, 2, '网络抖动应重试一次')
+    } finally { restore(); restoreOnline() }
+  })
+
+  await test('429 与 4xx 不重试', async () => {
+    let calls429 = 0
+    const restore429 = mockFetch(() => { calls429 += 1; return jsonResponse(429, {}) })
+    try {
+      await fetchJson('https://example.test/x', 1000)
+      assert(false, '应抛出错误')
+    } catch (error) {
+      assert(error instanceof Error && error.message.includes('请求较频繁'), '429 保持限流文案')
+      equal(calls429, 1, '429 不得重试（避免加剧限流）')
+    } finally { restore429() }
+
+    let calls404 = 0
+    const restore404 = mockFetch(() => { calls404 += 1; return jsonResponse(404, {}) })
+    try {
+      await fetchJson('https://example.test/x', 1000)
+      assert(false, '应抛出错误')
+    } catch (error) {
+      assert(error instanceof Error && error.message.includes('404'), '4xx 保持原状态码文案')
+      equal(calls404, 1, '4xx 不得重试')
+    } finally { restore404() }
+  })
+
+  await test('已断网时不重试', async () => {
+    let calls = 0
+    const restore = mockFetch(() => { calls += 1; return Promise.reject(new TypeError('fetch failed')) })
+    const restoreOnline = setOnline(false)
+    try {
+      await fetchJson('https://example.test/x', 1000)
+      assert(false, '应抛出错误')
+    } catch (error) {
+      assert(error instanceof Error && error.message.includes('缓存'), '离线时提示回退缓存')
+      equal(calls, 1, '离线重试无意义，应立即失败')
+    } finally { restore(); restoreOnline() }
+  })
+
+  await test('调用方主动取消时不重试且快速返回', async () => {
+    let calls = 0
+    const restore = mockFetch((url, init) => { calls += 1; return pendingFetch(url, init) })
+    const controller = new AbortController()
+    const startedAt = Date.now()
+    setTimeout(() => controller.abort(), 10)
+    try {
+      await fetchJson('https://example.test/x', 5000, controller.signal)
+      assert(false, '应抛出错误')
+    } catch (error) {
+      assert(error instanceof Error && error.message.includes('请求超时'), '取消仍按超时文案抛出')
+      assert(Date.now() - startedAt < 1000, '取消后必须快速失败')
+      equal(calls, 1, '取消时不得重试')
+    } finally { restore() }
+  })
+}

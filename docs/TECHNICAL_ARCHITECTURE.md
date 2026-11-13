@@ -1,6 +1,7 @@
 # 2.0 技术架构报告（TECHNICAL ARCHITECTURE）
 
-> 基线：`e4df8a6`。架构原则：纯函数领域层 + 注入式页面 + 平台抽象层（Web 自动降级）+ 依赖倒置（pages → 注入 props；domain 无 IO）。1.0 的单体 `lib/weather.ts` 已按职责拆为八层。
+> 基线：`e4df8a6`；**阶段 02 修订**（2026-11-13）：补强数据层有界重试、客户端环境变量校验、安全日志脱敏，并补充数据流图与配置说明（详见 [CONFIGURATION.md](./CONFIGURATION.md)）。
+> 架构原则：纯函数领域层 + 注入式页面 + 平台抽象层（Web 自动降级）+ 依赖倒置（pages → 注入 props；domain 无 IO）。1.0 的单体 `lib/weather.ts` 已按职责拆为八层。
 
 ## 1. 分层视图
 
@@ -74,6 +75,85 @@
 - Android：Manifest 权限最小化（INTERNET/定位/POST_NOTIFICATIONS/SCHEDULE_EXACT_ALARM/RECEIVE_BOOT_COMPLETED/VIBRATE）；usesCleartextTraffic=false；WebView 未开调试；release 签名 Secrets 注入，无 Secrets 时未签名产物 + 显式警告。
 - 验证：`npm run lint` 0 错误 · `npm test` 52/52 · `npm run build` 成功（285.9 kB/gzip 94.2 kB）· `npm audit --omit=dev` 0 漏洞。
 
-## 6. 已知架构风险
+## 6. 数据流图
+
+### 6.1 启动初始化
+
+```
+main.tsx
+  └─ validateClientEnv(import.meta.env)      // config/env.ts：扫描 VITE_* 疑似密钥，告警不阻断
+  └─ initPlatform()                          // platform/index.ts
+       ├─ initStorage()                      // 原生端 Preferences 全量预热进内存
+       ├─ configureStatusBar()               // 仅原生
+       ├─ registerBackHandler()              // 仅原生
+       └─ ensureNotificationChannels()       // 仅原生，幂等建 3 渠道（daily/reminder/warning）
+  └─ createRoot(<App/>)
+  └─ hideSplash()                            // 仅原生
+App
+  └─ 同步读缓存首帧：loadSavedCity / loadPreferences / loadFavorites / loadRecent / loadSubscriptions
+  └─ useWeather(city) / useWarnings(city)
+  └─ startNotificationScheduler()            // 30s tick 评估订阅（services/notifications/scheduler）
+```
+
+### 6.2 主天气数据流（useWeather 为唯一入口）
+
+```
+城市切换 / 手动刷新
+  │
+  ▼
+useWeather.load()
+  │  ① AbortController 去重（同 key 进行中请求直接忽略；新请求取消旧请求）
+  │  ② 命中缓存（fetchedAt < 10min TTL）→ 立即渲染缓存，后台静默刷新
+  │  ③ 无缓存 → loading 态
+  ▼
+fetchWeather(city)                           // services/weather/api.ts
+  │  ├─ throttle()：任意两次 API 请求 ≥3s 间隔（客户端限流）
+  │  ├─ fetchJson(forecast)  ──┐ 并行
+  │  └─ fetchJson(airQuality) ─┘ 失败降级 null 不阻断
+  │     fetchJson 内部：12s 超时 + 有界重试（仅 5xx/网络异常/单次超时，最多 1 次 ×400ms，
+  │     不重试 429/4xx/离线/调用方取消）
+  ▼
+映射为 WeatherData（统一天气数据模型，types/weather.ts）
+  │
+  ├─ 成功 → saveWeather() 写缓存（8 城 LRU，DATA_KEY）→ setData
+  ├─ 失败 + 有缓存 → 渲染缓存 + error「已显示上次缓存」
+  └─ 失败 + 无缓存 → error 文案（429/超时/断网/状态码各自区分）
+```
+
+### 6.3 预警数据流（增强信息，不阻断主流程）
+
+```
+useWarnings(city)
+  └─ fetchWarnings(city)                     // services/weather/warnings.ts
+       ├─ 内存/存储双级缓存（WARNINGS_KEY，10min TTL，全国列表一份）
+       ├─ 过期 → 拉取 nmc.cn findAlarm（12s 超时，pageSize=500）
+       │    → parseWarning（标题正则）→ filterWarningsForCity（城市/省份后缀剥离匹配）
+       │    → sortWarnings（级别权重 + 发布时间）
+       └─ 任何失败 → 静默退回过期缓存；无缓存 → 空列表（不抛出）
+```
+
+### 6.4 平台能力调用边界
+
+```
+业务层（hooks/services/pages）
+  │  只调用 platform/ 暴露的接口
+  ▼
+platform/（唯一平台判断源：native.ts）
+  ├─ storage：原生 Preferences / Web localStorage（同步 API，原生双写+预热）
+  ├─ geolocation：原生插件（OS-PLUG-GLOC 错误码中文映射）/ Web navigator.geolocation（HTTPS 限制）
+  ├─ notifications：原生本地通知（3 渠道）/ Web Notification API（页面关闭不可达）
+  ├─ push：FCM 令牌（无 google-services.json 时全接口安全降级 null/false）
+  ├─ network：原生插件 / Web online+offline 事件
+  └─ log：安全日志出口（只含 name/code/message 原始字段，见 §3.8）
+```
+
+## 7. 阶段 02 修订要点
+
+1. **有界重试策略**（`services/weather/api.ts`）：`fetchJson` 对 5xx、网络层 TypeError、单次请求超时重试 1 次（间隔 400ms）；429/4xx（服务端明确拒绝，重试加剧限流）、已断网（`navigator.onLine=false`）、调用方取消（`signal.aborted`）一律不重试。对外错误文案与阶段 01 完全一致。
+2. **客户端环境变量校验**（`config/env.ts`）：启动时扫描 `import.meta.env`，凡 `VITE_*` 且命名命中密钥惯例（key/token/secret/password/private/credential，大小写与 `-`/`_` 变体）即 `console.warn` 告警（只输出键名，绝不输出值）并返回 false，不阻断启动。本应用数据源全部免密钥，正常扫描恒为空。
+3. **安全日志脱敏**（`platform/log.ts`）：新增统一错误日志出口 `logError(tag, error)` / `describeError`，只提取 `name/code/message` 原始类型字段，嵌套对象（可能携带坐标、FCM 令牌等）一律省略；`platform/geolocation.ts` 原生失败日志已从 dump 整个错误对象切换为该出口。
+4. **测试**：新增 18 例（有界重试 6、环境变量校验 6、安全日志 6），总计 10 套件 73 例，全部通过。
+
+## 8. 已知架构风险
 
 见 [RISK_REGISTER.md](./RISK_REGISTER.md)。要点：CI 未跑测试（R-01）、无 E2E（R-02）、Web 通知浏览器限制（R-03）、FCM 配置缺失（R-04）、nmc 预警源单点与 500 条上限（R-05）、Android SDK 37 云端工具链（R-06）、工作区 keystore 残留（R-07）、scheduler 无测试（R-08）、package.json 版本号（R-09）。

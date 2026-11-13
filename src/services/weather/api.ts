@@ -24,7 +24,49 @@ async function throttle() {
   lastRequestAt = Date.now()
 }
 
+// ── 有界重试策略 ──────────────────────────────────────────
+// 免费公共 API 配额敏感，重试必须克制：
+//   · 仅瞬时故障重试：5xx、网络层 TypeError、单次请求超时；且最多重试 1 次（共 2 次尝试）。
+//   · 不重试：429/4xx（服务端明确拒绝，重试会加剧限流）、已断网（navigator.onLine=false）、
+//     调用方主动取消（signal 已 abort，重试会拖慢城市切换）。
+//   · 重试间隔固定 400ms，发生在此刻限流窗口之外，不叠加 MIN_REQUEST_INTERVAL 节流。
+const MAX_ATTEMPTS = 2
+const RETRY_DELAY_MS = 400
+
+// 标记"可重试"的 Error：不改变对外抛出的 message，只附加内部标记供重试判断。
+function retryable(error: Error): Error {
+  const tagged = error as Error & { __retryable?: boolean }
+  tagged.__retryable = true
+  return error
+}
+
+function isRetryable(error: unknown): boolean {
+  return error instanceof Error && (error as Error & { __retryable?: boolean }).__retryable === true
+}
+
+function delay(ms: number, signal?: AbortSignal): Promise<void> {
+  return new Promise((resolve) => {
+    const timer = setTimeout(resolve, ms)
+    signal?.addEventListener('abort', () => { clearTimeout(timer); resolve() }, { once: true })
+  })
+}
+
 export async function fetchJson<T>(url: string, timeout = 12000, signal?: AbortSignal): Promise<T> {
+  let lastError: unknown = null
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    try {
+      return await fetchOnce<T>(url, timeout, signal)
+    } catch (error) {
+      lastError = error
+      const callerAborted = signal?.aborted === true
+      if (attempt >= MAX_ATTEMPTS || callerAborted || !isRetryable(error)) throw error
+      await delay(RETRY_DELAY_MS, signal)
+    }
+  }
+  throw lastError
+}
+
+async function fetchOnce<T>(url: string, timeout: number, signal?: AbortSignal): Promise<T> {
   const controller = new AbortController()
   const timer = window.setTimeout(() => controller.abort(), timeout)
   const abort = () => controller.abort()
@@ -32,12 +74,21 @@ export async function fetchJson<T>(url: string, timeout = 12000, signal?: AbortS
   try {
     const response = await fetch(url, { signal: controller.signal, headers: { Accept: 'application/json' } })
     if (response.status === 429) throw new Error('天气服务请求较频繁，请稍后再试。')
-    if (!response.ok) throw new Error(`服务暂时不可用（${response.status}），请稍后重试。`)
+    if (!response.ok) {
+      const error = new Error(`服务暂时不可用（${response.status}），请稍后重试。`)
+      // 5xx 视为瞬时故障（服务端可能正在恢复），4xx 视为调用问题，均不重试。
+      if (response.status >= 500) retryable(error)
+      throw error
+    }
     return await response.json() as T
   } catch (error) {
-    if (error instanceof DOMException && error.name === 'AbortError') throw new Error('请求超时，请检查网络后重试。')
+    if (error instanceof DOMException && error.name === 'AbortError') {
+      // 调用方取消由上层判断（signal.aborted），这里统一按超时文案抛出；
+      // 单次超时本身值得重试一次（网络抖动），但取消重试由 fetchJson 的 callerAborted 保证。
+      throw retryable(new Error('请求超时，请检查网络后重试。'))
+    }
     if (!navigator.onLine) throw new Error('当前网络已断开，正在尝试使用缓存数据。')
-    if (error instanceof TypeError) throw new Error('网络连接异常，请稍后重试。')
+    if (error instanceof TypeError) throw retryable(new Error('网络连接异常，请稍后重试。'))
     throw error
   } finally {
     window.clearTimeout(timer)

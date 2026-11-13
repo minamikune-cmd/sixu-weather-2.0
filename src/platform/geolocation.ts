@@ -3,6 +3,7 @@
 // Android：@capacitor/geolocation（原生权限弹窗，无需安全上下文限制）。
 import { Geolocation } from '@capacitor/geolocation'
 import { isNative } from './native'
+import { logError } from './log'
 
 export interface Coordinates {
   latitude: number
@@ -43,8 +44,9 @@ export async function getCurrentPosition(): Promise<Coordinates> {
       })
       return { latitude: position.coords.latitude, longitude: position.coords.longitude }
     } catch (error) {
-      // 原生失败时把完整错误打到 logcat（adb logcat | grep -i "geolocation\|capacitor"），便于真机排查。
-      console.error('[geolocation] native error:', error)
+      // 原生失败时把错误码与信息打到 logcat（adb logcat | grep -i "geolocation\|capacitor"）便于真机排查；
+      // 经 logError 脱敏，只含 name/code/message 原始字段，不 dump 整个错误对象（可能携带坐标等敏感载荷）。
+      logError('geolocation', error)
       const err = error as { code?: number | string; message?: string }
       throw new GeolocationError(
         messageForNativeError(err?.code) ?? '暂时无法获取位置，请手动搜索城市。',
