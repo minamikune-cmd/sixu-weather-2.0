@@ -30,6 +30,11 @@
 | `--season-glow` | 随季节 + 天气调整 | 背景光晕（sky-aurora），雨天/阴天自动转冷压暗 |
 | `--chart-color` | 随季节切换 | 温度曲线主色 |
 | `--sky-top/middle/bottom` | 随 相位×季节×天气 | 三段天空渐变 |
+| `--alert-watch` / `--alert-advisory` | 固定语义色（#d97757 / #c9a44c） | 应用内天气提示卡（`alert-card`）边框与标题 |
+| `--alert-watch-bg-light` / `--alert-advisory-bg-light` | 固定浅色底变体 | `style-light` 下提示卡底色 |
+| `--warn-red/orange/yellow/blue` + `-text` + `-bg-light` | 固定语义色（#e5484d / #f76b15 / #ffb224 / #0091ff） | 官方预警四级（`official-warning`）边框、标题文字、浅色底 |
+
+预警级别色集中在一处定义（App.css 语义层 `:root`），组件只引用令牌，禁止在组件内硬编码级别色；e2e 用例（`tests/e2e/visual.spec.ts`）断言解析后的计算色值，防止令牌断链。
 
 ### 1.3 `.glass` 工具类
 
@@ -123,7 +128,7 @@
 
 ## 6. 适配与无障碍
 
-- **断点**：移动 <720px、平板 720–1024px、桌面 ≥1024px、宽屏 ≥1440px 五档；移动底部玻璃导航 / 桌面顶部导航自动切换。
+- **断点**：四档媒体查询协作而非分档硬切——`max-width: 600px`（小屏收紧排版）、`max-width: 820px`（平板布局）、`max-width: 1180px`（中屏微调）、`min-width: 701px`（桌面侧栏/导航增强）；≤700px 显示底部玻璃导航，≥701px 显示顶部导航与宽版 Hero 网格。
 - **Android**：`viewport-fit=cover` + `safe-area-inset` 适配全屏/非全屏；状态栏颜色随 `isDarkChrome` 同步；Capacitor 8。
 - **无障碍**：全部交互元素原生 `<button>` + `aria-label`；语义分区（section/nav）；焦点环 `--focus`；文字对比度在玻璃底上 ≥ WCAG AA（夜色自动加深玻璃底）。
 - **prefers-reduced-motion**：环境动画开关 + 系统级减少动态双重降级：粒子停止、循环动画停止、仅保留透明度交叉淡入。

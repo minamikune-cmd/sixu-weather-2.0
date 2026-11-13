@@ -12,7 +12,8 @@
     "cap:sync": "npm run build && npx cap sync android",
     "android:build": "npm run cap:sync && cd android && ./gradlew :app:assembleDebug",
     "preview": "vite preview",
-    "deploy": "npm run build && wrangler pages deploy dist --project-name=sixu-weather-2-0"
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=sixu-weather-2-0",
+    "test:e2e": "PLAYWRIGHT_BROWSERS_PATH=.pw-browsers playwright test"
   },
   "dependencies": {
     "@capacitor/android": "^8.6.0",
@@ -32,6 +33,7 @@
     "@capacitor/assets": "^4.0.0",
     "@capacitor/cli": "^8.6.0",
     "@eslint/js": "^9.39.1",
+    "@playwright/test": "^1.65.0",
     "@types/node": "^24.10.1",
     "@types/react": "^19.2.5",
     "@types/react-dom": "^19.2.3",

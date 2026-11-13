@@ -66,4 +66,5 @@
 ## 6. 验证
 
 - `npm test`：10 套件 73 例（含环境变量校验 6、有界重试 6、安全日志 6）。
+- `npm run test:e2e`（阶段 03 新增）：Playwright 11 例视觉/交互检查，对生产构建运行，接口经路由拦截注入确定性夹具；浏览器复用 `.pw-browsers`（脚本已内置 `PLAYWRIGHT_BROWSERS_PATH`），首次在其他机器运行需 `npx playwright install chromium`。
 - `docs/TECHNICAL_ARCHITECTURE.md` §7 记录阶段 02 全部配置面变更。

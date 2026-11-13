@@ -50,3 +50,9 @@ pnpm-debug.log*
 .gradle-home/
 .gradle-home*.log
 .tmp-e2e/
+
+# 本地 npm 缓存（沙箱内替代全局缓存）
+.npm-cache/
+
+# Playwright 测试残留
+test-results/

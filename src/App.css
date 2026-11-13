@@ -49,6 +49,25 @@
   --land-back: oklch(29% 0.045 220 / .55);
   --land-front: oklch(19% 0.035 240 / .82);
   --shadow: var(--shadow-soft);
+
+  /* 语义预警色：应用内天气提示（两级）与官方预警（蓝黄橙红四级）。
+     集中在此管理，组件与浅色覆盖只引用令牌，不再硬编码色值。 */
+  --alert-watch: #d97757;
+  --alert-advisory: #c9a44c;
+  --alert-watch-bg-light: oklch(84% 0.09 40 / .3);
+  --alert-advisory-bg-light: oklch(86% 0.08 80 / .3);
+  --warn-blue: #0091ff;
+  --warn-blue-text: #6bc5ff;
+  --warn-blue-bg-light: oklch(88% 0.06 240 / .3);
+  --warn-yellow: #ffb224;
+  --warn-yellow-text: #ffd60a;
+  --warn-yellow-bg-light: oklch(90% 0.08 90 / .35);
+  --warn-orange: #f76b15;
+  --warn-orange-text: #ffa474;
+  --warn-orange-bg-light: oklch(86% 0.09 60 / .3);
+  --warn-red: #e5484d;
+  --warn-red-text: #ff9592;
+  --warn-red-bg-light: oklch(84% 0.09 20 / .3);
 }
 
 /* ---------- 玻璃工具类：面板统一入口 ---------- */
@@ -350,12 +369,12 @@ svg { flex-shrink: 0; }
 .alert-card:nth-child(4) { animation-delay: 180ms; }
 .alert-card strong { font-size: 13px; font-weight: 500; letter-spacing: .04em; }
 .alert-card p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
-.alert-card.watch { border-left-color: #d97757; }
-.alert-card.watch strong { color: #d97757; }
-.alert-card.advisory { border-left-color: #c9a44c; }
-.alert-card.advisory strong { color: #c9a44c; }
-.style-light .alert-card.watch { background: oklch(84% 0.09 40 / .3); }
-.style-light .alert-card.advisory { background: oklch(86% 0.08 80 / .3); }
+.alert-card.watch { border-left-color: var(--alert-watch); }
+.alert-card.watch strong { color: var(--alert-watch); }
+.alert-card.advisory { border-left-color: var(--alert-advisory); }
+.alert-card.advisory strong { color: var(--alert-advisory); }
+.style-light .alert-card.watch { background: var(--alert-watch-bg-light); }
+.style-light .alert-card.advisory { background: var(--alert-advisory-bg-light); }
 
 /* ---------- 指标区 ---------- */
 .metrics-section { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
@@ -773,15 +792,15 @@ p.privacy-small { display: flex; align-items: center; gap: 6px; }
 .official-warning svg { flex-shrink: 0; margin-top: 2px; }
 .official-warning strong { display: block; font-size: 13px; font-weight: 500; letter-spacing: .04em; }
 .official-warning span { display: block; margin-top: 4px; font-size: 12px; color: var(--text-muted); }
-.official-warning.level-red { border-left-color: #e5484d; }
-.official-warning.level-red svg, .official-warning.level-red strong { color: #ff9592; }
-.official-warning.level-orange { border-left-color: #f76b15; }
-.official-warning.level-orange svg, .official-warning.level-orange strong { color: #ffa474; }
-.official-warning.level-yellow { border-left-color: #ffb224; }
-.official-warning.level-yellow svg, .official-warning.level-yellow strong { color: #ffd60a; }
-.official-warning.level-blue { border-left-color: #0091ff; }
-.official-warning.level-blue svg, .official-warning.level-blue strong { color: #6bc5ff; }
-.style-light .official-warning.level-red { background: oklch(84% 0.09 20 / .3); }
-.style-light .official-warning.level-orange { background: oklch(86% 0.09 60 / .3); }
-.style-light .official-warning.level-yellow { background: oklch(90% 0.08 90 / .35); }
-.style-light .official-warning.level-blue { background: oklch(88% 0.06 240 / .3); }
+.official-warning.level-red { border-left-color: var(--warn-red); }
+.official-warning.level-red svg, .official-warning.level-red strong { color: var(--warn-red-text); }
+.official-warning.level-orange { border-left-color: var(--warn-orange); }
+.official-warning.level-orange svg, .official-warning.level-orange strong { color: var(--warn-orange-text); }
+.official-warning.level-yellow { border-left-color: var(--warn-yellow); }
+.official-warning.level-yellow svg, .official-warning.level-yellow strong { color: var(--warn-yellow-text); }
+.official-warning.level-blue { border-left-color: var(--warn-blue); }
+.official-warning.level-blue svg, .official-warning.level-blue strong { color: var(--warn-blue-text); }
+.style-light .official-warning.level-red { background: var(--warn-red-bg-light); }
+.style-light .official-warning.level-orange { background: var(--warn-orange-bg-light); }
+.style-light .official-warning.level-yellow { background: var(--warn-yellow-bg-light); }
+.style-light .official-warning.level-blue { background: var(--warn-blue-bg-light); }

@@ -66,8 +66,9 @@
 
 ## 4. 测试策略现状
 
-- **单元**（52/52 通过）：air 2 · api 7（错误路径/429/超时/取消）· geolocation 3（WIP）· solar 11 · subscriptions 16 · warnings 13；fixtures 构造假数据不触网。
-- **缺口**：调度器 scheduler.ts、主题 theme、UI 组件无单元覆盖；无 Playwright E2E 入库；CI 未接入 `npm test`。责任阶段 07。
+- **单元**（73/73 通过）：air 2 · api 13（错误路径/429/超时/取消/重试）· env 6 · geolocation 3 · log 6 · solar 11 · subscriptions 16 · warnings 13；fixtures 构造假数据不触网。
+- **E2E**（阶段 03 新增，`npm run test:e2e`）：Playwright 11 例视觉/交互用例（`tests/e2e/visual.spec.ts`），对 `vite preview` 生产构建运行；外部天气/空气质量/预警接口经路由拦截注入确定性夹具（`tests/e2e/fixtures.ts`），页面时间经 `Date` 冻结固定，截图输出 `docs/reports/assets/phase3-e2e-*.png`。浏览器复用仓库内 `.pw-browsers`（`PLAYWRIGHT_BROWSERS_PATH`）。类型检查经 `tsconfig.e2e.json` 纳入 `tsc -b`。
+- **缺口**：调度器 scheduler.ts、主题 theme、UI 组件仍无单元覆盖；CI 未接入 `npm test` / `test:e2e`。责任阶段 07–08。
 
 ## 5. 部署与安全架构
 
