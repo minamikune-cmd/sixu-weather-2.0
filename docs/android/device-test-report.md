@@ -55,3 +55,16 @@
 1. ~~Release keystore~~ ✅ 已提供并完成签名（2026-11-11）。
 2. `google-services.json`（Firebase 控制台下载）→ 启用 FCM 真推送。
 3. 一台 Android 8+ 真机执行第 3 节协议（约 15 分钟），结果回填本报告。
+
+## 5. 真机问题记录与修复（2026-11-11）
+
+**现象**：真机已批准定位权限，但仍无法获取当前位置，提示笼统的「暂时无法获取位置」。
+
+**根因（代码层，已修复）**：`src/platform/geolocation.ts` 用 `error.code === 1` 判断权限拒绝，但 `@capacitor/geolocation` v8 原生侧已改用字符串错误码（`OS-PLUG-GLOC-xxxx`，定义于插件 `GeolocationErrors.kt`），数字码判断是死代码，导致所有原生失败都落入同一条兜底文案，无法区分真实原因。
+
+**修复**：按字符串错误码逐码映射为可操作的中文提示（0003 权限 / 0007 系统位置开关 / 0010 超时 / 0014-0015 Google 服务 / 0016 定位设置 / 0017 网络+定位关闭 / 0018 manifest 缺声明），兼容旧版数字码 1；原生失败时同时 `console.error` 输出完整错误对象到 logcat。新增单测 `tests/geolocation.test.ts`（3/3 通过）。
+
+**待回填**：重装新 APK 后重试定位，记录弹出的**具体提示文案**（或 `adb logcat | grep -i geolocation` 中的错误码），据此确认真机侧的具体原因。常见可能：
+- 设备无 Google 服务（国产 ROM）→ 原生库自动降级 LocationManager，室内 GPS 冷启动可能超过 10s 超时；
+- 系统「位置信息」总开关关闭 → 提示会明确指向该开关；
+- 授权时只选了「大致位置」而系统 gps provider 需要「精确位置」。

@@ -42,6 +42,8 @@ async function main(): Promise<void> {
   await import('./warnings.test').then((module) => module.runWarningTests()).then(() => import('./harness').then((h) => h.summary('官方预警')))
   console.log('■ 数据可靠性（错误路径）')
   await import('./api.test').then((module) => module.runApiTests()).then(() => import('./harness').then((h) => h.summary('数据可靠性')))
+  console.log('■ 定位平台层（原生错误码映射）')
+  await import('./geolocation.test').then((module) => module.runGeolocationTests()).then(() => import('./harness').then((h) => h.summary('定位平台层')))
   if (process.exitCode === 1) console.error('\n存在失败用例')
   else console.log('\n全部测试通过')
 }
