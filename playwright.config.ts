@@ -20,7 +20,9 @@ export default defineConfig({
     : {
         command: 'npm run build && npm run preview -- --port 4173 --strictPort',
         url: 'http://localhost:4173',
-        reuseExistingServer: !process.env.CI,
+        // 不复用已有服务：端口被残留 preview 占用时 Playwright 会跳过 build，
+        // 导致测试跑在过期 dist 上（阶段 03 验收修复期间实际踩中）。
+        reuseExistingServer: false,
         timeout: 120_000,
       },
 })

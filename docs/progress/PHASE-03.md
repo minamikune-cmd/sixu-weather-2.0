@@ -161,3 +161,18 @@
 2. **真机验收窗口**：借阶段 04 的真机/模拟器条件，一并走查本阶段视觉（四季切换、玻璃、安全区、减少动态）。
 3. **CI 前置**：阶段 08 的 CI 接入可直接复用 `npm test` 与 `test:e2e` 两个脚本（浏览器缓存 key 建议用 `.pw-browsers` 版本指纹）。
 4. **文档衔接**：`docs/reports/phase-3-visual-system.md` 为历史视觉验收报告，本报告与其互补（审计+缺口+E2E）；阶段 04 报告建议沿用本格式。
+
+## 14. 验收问题与修复（2026-11-13 第二轮）
+
+针对验收提出的三类问题，以独立修复提交处理（未重写视觉系统，未改历史提交）：
+
+1. **浅色主题预警文字对比度**：新增 `--alert-watch-text` / `--alert-advisory-text` 令牌（深色主题同边框色，行为不变），并在 `.style-light` 为四级官方预警与两级提示卡建立独立深色文字变体（#0b5fcc / #8a5a00 / #b04a00 / #c02c30、#ad4f24 / #856518）。边框令牌保持原色（非文本对比 3:1 即可）。实测对比度经浏览器 canvas 按 WCAG 公式对"浅底叠白"最坏情况计算，全部 ≥4.5:1（`tests/e2e/contrast.ts`，含颜色解析失败显式报错防假通过）。
+2. **E2E 时间夹具时区**：`current.time` 原经 `toISOString()` 生成（UTC，与上海当地时间差 8 小时）；现由 `shanghaiDateTime()` 经 `Intl.DateTimeFormat(timeZone: 'Asia/Shanghai')` 生成，与 `utc_offset_seconds` 一致。`hourSeries` / `daily.time` / `sunrise` / `sunset` 原手工拼接日期（跨月产出 "11-32" 非法值）；现统一走 `addCalendarDays()`（`Date.UTC` 纯日历运算），跨月/跨年/闰年安全，且不依赖执行机器本地时区。
+3. **文档**：`design-system.md` 中错误的 `src/domain/season.ts` 已修正为 `src/domain/seasons.ts`；令牌表同步更新浅色文字变体。
+
+**新增测试 9 例**（总计 11 → 20 例，全部真实执行通过）：
+
+- `tests/e2e/fixtures.spec.ts`（纯函数，不启浏览器）4 例：`shanghaiDateTime` 时区对齐（含 UTC/上海不同日、跨年）、`addCalendarDays` 跨月/跨年/闰年、`buildForecast` 跨月与跨年日期翻转及 `current.time` 与 hourly 序列对齐。
+- `tests/e2e/visual.spec.ts`（浏览器）5 例：浅色主题官方预警四级文字对比度、浅色主题 watch / advisory 提示卡对比度、白天 12:00 与跨月边界 02:00 的页面时钟/日期/逐日数据一致性（UTC 与上海不同日场景）。
+
+**工具链修复（实际事故）**：`playwright.config.ts` 的 `reuseExistingServer` 原为 `!process.env.CI`——验收修复期间两个 11 月 11 日残留的 `vite preview` 进程占用 4173 端口，导致 webServer 的 `npm run build` 被跳过，测试跑在过期 dist 上（浅色覆盖"未生效"假象）。已改为 `false` 强制每次全新构建；残留进程已清理。

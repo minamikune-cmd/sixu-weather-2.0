@@ -54,6 +54,9 @@
      集中在此管理，组件与浅色覆盖只引用令牌，不再硬编码色值。 */
   --alert-watch: #d97757;
   --alert-advisory: #c9a44c;
+  /* 提示卡标题文字色：深色主题与边框同色；浅色主题在 .style-light 中覆盖为深色变体（WCAG AA）。 */
+  --alert-watch-text: var(--alert-watch);
+  --alert-advisory-text: var(--alert-advisory);
   --alert-watch-bg-light: oklch(84% 0.09 40 / .3);
   --alert-advisory-bg-light: oklch(86% 0.08 80 / .3);
   --warn-blue: #0091ff;
@@ -173,6 +176,14 @@ svg { flex-shrink: 0; }
 
 /* ---------- 浅色/深色固定风格 ---------- */
 .style-light {
+  /* 浅色主题预警文字独立深色变体：在浅色玻璃底上达到 WCAG AA（≥4.5:1），
+     边框令牌保持原色不变（非文本对比只需 3:1）。深色主题不受影响。 */
+  --alert-watch-text: #ad4f24;
+  --alert-advisory-text: #856518;
+  --warn-blue-text: #0b5fcc;
+  --warn-yellow-text: #8a5a00;
+  --warn-orange-text: #b04a00;
+  --warn-red-text: #c02c30;
   --text: oklch(23% 0.035 245);
   --text-muted: oklch(30% 0.03 240 / .74);
   --accent: oklch(48% 0.13 45);
@@ -370,9 +381,9 @@ svg { flex-shrink: 0; }
 .alert-card strong { font-size: 13px; font-weight: 500; letter-spacing: .04em; }
 .alert-card p { margin: 0; font-size: 12px; line-height: 1.6; color: var(--text-muted); }
 .alert-card.watch { border-left-color: var(--alert-watch); }
-.alert-card.watch strong { color: var(--alert-watch); }
+.alert-card.watch strong { color: var(--alert-watch-text); }
 .alert-card.advisory { border-left-color: var(--alert-advisory); }
-.alert-card.advisory strong { color: var(--alert-advisory); }
+.alert-card.advisory strong { color: var(--alert-advisory-text); }
 .style-light .alert-card.watch { background: var(--alert-watch-bg-light); }
 .style-light .alert-card.advisory { background: var(--alert-advisory-bg-light); }
 

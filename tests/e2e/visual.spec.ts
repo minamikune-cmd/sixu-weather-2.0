@@ -3,6 +3,7 @@
 import { expect, test } from '@playwright/test'
 import { resolve } from 'node:path'
 import { freezeTime, installRoutes, seedPreferences, seedSeenFlags } from './fixtures'
+import { measureTextContrast } from './contrast'
 
 // 固定两个时刻：白天 12:00（日出 06:45 / 日落 17:20 → day）与夜间 22:30（→ night）。
 const DAY_MS = Date.parse('2026-11-13T12:00:00+08:00')
@@ -231,5 +232,85 @@ test.describe('加载状态', () => {
 
     await expect(page.locator('.current-temperature')).toBeVisible({ timeout: 10_000 })
     await expect(loading).toBeHidden()
+  })
+})
+
+test.describe('浅色主题对比度（WCAG AA）', () => {
+  test('官方预警 · 蓝/黄/橙/红四级文字对比度 ≥ 4.5:1', async ({ page }) => {
+    await seedPreferences(page, { visualStyle: 'light' })
+    await freezeTime(page, DAY_MS)
+    await installRoutes(page, {
+      scene: { weatherCode: 1, isDay: 1 },
+      fixedNowMs: DAY_MS,
+      warnings: [
+        { alertid: 'w-red', title: '北京市气象台发布暴雨红色预警信号', issuetime: '2026/11/13 10:00' },
+        { alertid: 'w-orange', title: '北京市气象台发布寒潮橙色预警信号', issuetime: '2026/11/13 09:30' },
+        { alertid: 'w-yellow', title: '北京市气象台发布大雾黄色预警信号', issuetime: '2026/11/13 09:00' },
+        { alertid: 'w-blue', title: '北京市气象台发布大风蓝色预警信号', issuetime: '2026/11/13 08:00' },
+      ],
+    })
+    await page.goto('/')
+    await expect(page.locator('.app')).toHaveClass(/style-light/)
+
+    for (const level of ['blue', 'yellow', 'orange', 'red'] as const) {
+      const card = `.official-warning.level-${level}`
+      await expect(page.locator(card)).toBeVisible()
+      const { ratio, textColor, backgroundColor } = await measureTextContrast(page, card, `${card} strong`)
+      expect(ratio, `${level} 对比度不足：text=${textColor} bg=${backgroundColor}`).toBeGreaterThanOrEqual(4.5)
+    }
+  })
+
+  test('应用内提示卡 · watch 级文字对比度 ≥ 4.5:1', async ({ page }) => {
+    await seedPreferences(page, { visualStyle: 'light' })
+    await freezeTime(page, DAY_MS)
+    await installRoutes(page, { scene: { weatherCode: 2, isDay: 1, windSpeed: 56 }, fixedNowMs: DAY_MS })
+    await page.goto('/')
+
+    const card = '.alert-card.watch'
+    await expect(page.locator(card)).toBeVisible()
+    const { ratio, textColor, backgroundColor } = await measureTextContrast(page, card, `${card} strong`)
+    expect(ratio, `watch 对比度不足：text=${textColor} bg=${backgroundColor}`).toBeGreaterThanOrEqual(4.5)
+  })
+
+  test('应用内提示卡 · advisory 级文字对比度 ≥ 4.5:1', async ({ page }) => {
+    await seedPreferences(page, { visualStyle: 'light' })
+    await freezeTime(page, DAY_MS)
+    await installRoutes(page, {
+      scene: { weatherCode: 65, isDay: 1, temperature: 18, precipitationProbability: 80 },
+      fixedNowMs: DAY_MS,
+    })
+    await page.goto('/')
+
+    const card = '.alert-card.advisory'
+    await expect(page.locator(card)).toBeVisible()
+    const { ratio, textColor, backgroundColor } = await measureTextContrast(page, card, `${card} strong`)
+    expect(ratio, `advisory 对比度不足：text=${textColor} bg=${backgroundColor}`).toBeGreaterThanOrEqual(4.5)
+  })
+})
+
+test.describe('时间一致性（Asia/Shanghai）', () => {
+  test('白天 12:00 · 页面时钟与接口 current.time 对齐', async ({ page }) => {
+    await freezeTime(page, DAY_MS)
+    await installRoutes(page, { scene: { weatherCode: 0, isDay: 1, temperature: 24 }, fixedNowMs: DAY_MS })
+    await page.goto('/')
+
+    // 夹具 current.time = '2026-11-13T12:00'（+08:00），页面时钟必须显示同一当地时间。
+    await expect(page.locator('.local-clock span')).toHaveText('12:00')
+    await expect(page.locator('.local-clock')).toHaveAttribute('aria-label', /当地时间12时00分/)
+    await expect(page.locator('.hero-meta p')).toContainText('2026 年 11 月 13 日')
+    await expect(page.locator('.hero-meta p')).toContainText('Asia/Shanghai')
+  })
+
+  test('跨月边界 · 12-01 02:00（UTC 仍为 11-30）时钟与逐日数据一致', async ({ page }) => {
+    // UTC 2026-11-30T18:00Z → 上海 2026-12-01T02:00：UTC 与当地时间不同日。
+    const EARLY_MS = Date.parse('2026-11-30T18:00:00Z')
+    await freezeTime(page, EARLY_MS)
+    await installRoutes(page, { scene: { weatherCode: 0, isDay: 0, temperature: 3 }, fixedNowMs: EARLY_MS })
+    await page.goto('/')
+
+    await expect(page.locator('.local-clock span')).toHaveText('02:00')
+    await expect(page.locator('.hero-meta p')).toContainText('2026 年 12 月 1 日')
+    // 逐日首日 = 夹具当地日期 12-01（跨月递增正确，而非回退到 11-30）。
+    await expect(page.locator('#daily')).toContainText('12月1日')
   })
 })
