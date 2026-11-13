@@ -57,20 +57,20 @@
   /* 提示卡标题文字色：深色主题与边框同色；浅色主题在 .style-light 中覆盖为深色变体（WCAG AA）。 */
   --alert-watch-text: var(--alert-watch);
   --alert-advisory-text: var(--alert-advisory);
-  --alert-watch-bg-light: oklch(84% 0.09 40 / .3);
-  --alert-advisory-bg-light: oklch(86% 0.08 80 / .3);
+  --alert-watch-bg-light: oklch(93% 0.06 40 / .6);
+  --alert-advisory-bg-light: oklch(94% 0.05 80 / .6);
   --warn-blue: #0091ff;
   --warn-blue-text: #6bc5ff;
-  --warn-blue-bg-light: oklch(88% 0.06 240 / .3);
+  --warn-blue-bg-light: oklch(93% 0.05 240 / .6);
   --warn-yellow: #ffb224;
   --warn-yellow-text: #ffd60a;
-  --warn-yellow-bg-light: oklch(90% 0.08 90 / .35);
+  --warn-yellow-bg-light: oklch(95% 0.06 90 / .65);
   --warn-orange: #f76b15;
   --warn-orange-text: #ffa474;
-  --warn-orange-bg-light: oklch(86% 0.09 60 / .3);
+  --warn-orange-bg-light: oklch(93% 0.06 60 / .6);
   --warn-red: #e5484d;
   --warn-red-text: #ff9592;
-  --warn-red-bg-light: oklch(84% 0.09 20 / .3);
+  --warn-red-bg-light: oklch(93% 0.06 20 / .6);
 }
 
 /* ---------- 玻璃工具类：面板统一入口 ---------- */
@@ -178,12 +178,12 @@ svg { flex-shrink: 0; }
 .style-light {
   /* 浅色主题预警文字独立深色变体：在浅色玻璃底上达到 WCAG AA（≥4.5:1），
      边框令牌保持原色不变（非文本对比只需 3:1）。深色主题不受影响。 */
-  --alert-watch-text: #ad4f24;
-  --alert-advisory-text: #856518;
-  --warn-blue-text: #0b5fcc;
-  --warn-yellow-text: #8a5a00;
-  --warn-orange-text: #b04a00;
-  --warn-red-text: #c02c30;
+  --alert-watch-text: #93400f;
+  --alert-advisory-text: #6f520f;
+  --warn-blue-text: #0a54b6;
+  --warn-yellow-text: #7a4f00;
+  --warn-orange-text: #963f00;
+  --warn-red-text: #a92428;
   --text: oklch(23% 0.035 245);
   --text-muted: oklch(30% 0.03 240 / .74);
   --accent: oklch(48% 0.13 45);
@@ -205,6 +205,16 @@ svg { flex-shrink: 0; }
   --sky-top: oklch(72% 0.055 220);
   --sky-middle: oklch(78% 0.045 205);
   --sky-bottom: oklch(61% 0.045 220);
+}
+/* 浅色固定风格：任何季节、昼夜与天气下天空都保持明亮。
+   场景加权天空规则（昼夜×季节 (0,3,0)、天气再平衡 .app.app (0,3,0)）特异性均高于
+   .style-light.app (0,2,0)，会把浅色风格的天空压回中暗场景色——深色预警文字
+   叠在 30% 透明度的玻璃卡上无法满足 WCAG AA。用 .app.app 前缀抬升到 (0,4,0)，
+   保证浅色风格的天空恒定明亮（与上方天气再平衡的注释同理）。深色风格不受影响。 */
+.style-light.app.app {
+  --sky-top: oklch(80% 0.05 220);
+  --sky-middle: oklch(86% 0.04 205);
+  --sky-bottom: oklch(72% 0.045 220);
 }
 .style-light.app::before { background: linear-gradient(180deg, oklch(98% 0.01 220 / .08), transparent 60%, oklch(98% 0.01 220 / .16)); }
 .style-light .atmosphere { opacity: .52; }

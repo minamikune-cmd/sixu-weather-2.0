@@ -236,8 +236,10 @@ test.describe('加载状态', () => {
 })
 
 test.describe('浅色主题对比度（WCAG AA）', () => {
+  // 截图实测真实合成背景，需冻结入场动效（card-rise 带透明度关键帧），
+  // 避免采样到动画中间帧。
   test('官方预警 · 蓝/黄/橙/红四级文字对比度 ≥ 4.5:1', async ({ page }) => {
-    await seedPreferences(page, { visualStyle: 'light' })
+    await seedPreferences(page, { visualStyle: 'light', animations: false })
     await freezeTime(page, DAY_MS)
     await installRoutes(page, {
       scene: { weatherCode: 1, isDay: 1 },
@@ -251,29 +253,33 @@ test.describe('浅色主题对比度（WCAG AA）', () => {
     })
     await page.goto('/')
     await expect(page.locator('.app')).toHaveClass(/style-light/)
+    await page.screenshot({ path: `${ASSETS}/phase3-e2e-contrast-light-official.png` })
 
     for (const level of ['blue', 'yellow', 'orange', 'red'] as const) {
       const card = `.official-warning.level-${level}`
       await expect(page.locator(card)).toBeVisible()
-      const { ratio, textColor, backgroundColor } = await measureTextContrast(page, card, `${card} strong`)
-      expect(ratio, `${level} 对比度不足：text=${textColor} bg=${backgroundColor}`).toBeGreaterThanOrEqual(4.5)
+      const { ratio, textColor, backgroundColor, effectiveBackground } = await measureTextContrast(page, card, `${card} strong`)
+      console.log(`[contrast] ${level}: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`)
+      expect(ratio, `${level} 对比度不足：text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`).toBeGreaterThanOrEqual(4.5)
     }
   })
 
   test('应用内提示卡 · watch 级文字对比度 ≥ 4.5:1', async ({ page }) => {
-    await seedPreferences(page, { visualStyle: 'light' })
+    await seedPreferences(page, { visualStyle: 'light', animations: false })
     await freezeTime(page, DAY_MS)
     await installRoutes(page, { scene: { weatherCode: 2, isDay: 1, windSpeed: 56 }, fixedNowMs: DAY_MS })
     await page.goto('/')
 
     const card = '.alert-card.watch'
     await expect(page.locator(card)).toBeVisible()
-    const { ratio, textColor, backgroundColor } = await measureTextContrast(page, card, `${card} strong`)
-    expect(ratio, `watch 对比度不足：text=${textColor} bg=${backgroundColor}`).toBeGreaterThanOrEqual(4.5)
+    await page.screenshot({ path: `${ASSETS}/phase3-e2e-contrast-light-watch.png` })
+    const { ratio, textColor, backgroundColor, effectiveBackground } = await measureTextContrast(page, card, `${card} strong`)
+    console.log(`[contrast] watch: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`)
+    expect(ratio, `watch 对比度不足：text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`).toBeGreaterThanOrEqual(4.5)
   })
 
   test('应用内提示卡 · advisory 级文字对比度 ≥ 4.5:1', async ({ page }) => {
-    await seedPreferences(page, { visualStyle: 'light' })
+    await seedPreferences(page, { visualStyle: 'light', animations: false })
     await freezeTime(page, DAY_MS)
     await installRoutes(page, {
       scene: { weatherCode: 65, isDay: 1, temperature: 18, precipitationProbability: 80 },
@@ -283,8 +289,10 @@ test.describe('浅色主题对比度（WCAG AA）', () => {
 
     const card = '.alert-card.advisory'
     await expect(page.locator(card)).toBeVisible()
-    const { ratio, textColor, backgroundColor } = await measureTextContrast(page, card, `${card} strong`)
-    expect(ratio, `advisory 对比度不足：text=${textColor} bg=${backgroundColor}`).toBeGreaterThanOrEqual(4.5)
+    await page.screenshot({ path: `${ASSETS}/phase3-e2e-contrast-light-advisory.png` })
+    const { ratio, textColor, backgroundColor, effectiveBackground } = await measureTextContrast(page, card, `${card} strong`)
+    console.log(`[contrast] advisory: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`)
+    expect(ratio, `advisory 对比度不足：text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`).toBeGreaterThanOrEqual(4.5)
   })
 })
 
