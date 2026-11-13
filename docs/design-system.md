@@ -31,9 +31,9 @@
 | `--chart-color` | 随季节切换 | 温度曲线主色 |
 | `--sky-top/middle/bottom` | 随 相位×季节×天气 | 三段天空渐变 |
 | `--alert-watch` / `--alert-advisory` | 固定语义色（#d97757 / #c9a44c） | 应用内天气提示卡（`alert-card`）边框 |
-| `--alert-watch-text` / `--alert-advisory-text` | 深色主题同边框色；`style-light` 覆盖为 #ad4f24 / #856518 | 提示卡标题文字（浅色下满足 WCAG AA ≥4.5:1） |
+| `--alert-watch-text` / `--alert-advisory-text` | 深色主题同边框色；`style-light` 覆盖为 #93400f / #6f520f | 提示卡标题文字（浅色下满足 WCAG AA ≥4.5:1） |
 | `--alert-watch-bg-light` / `--alert-advisory-bg-light` | 固定浅色底变体 | `style-light` 下提示卡底色 |
-| `--warn-red/orange/yellow/blue` + `-text` + `-bg-light` | 边框/浅色底固定语义色（#e5484d / #f76b15 / #ffb224 / #0091ff）；`-text` 深色主题为亮变体，`style-light` 覆盖为 #c02c30 / #b04a00 / #8a5a00 / #0b5fcc | 官方预警四级（`official-warning`）边框、标题文字、浅色底 |
+| `--warn-red/orange/yellow/blue` + `-text` + `-bg-light` | 边框/浅色底固定语义色（#e5484d / #f76b15 / #ffb224 / #0091ff）；`-text` 深色主题为亮变体，`style-light` 覆盖为 #a92428 / #963f00 / #7a4f00 / #0a54b6 | 官方预警四级（`official-warning`）边框、标题文字、浅色底 |
 
 预警级别色集中在一处定义（App.css 语义层 `:root`），组件只引用令牌，禁止在组件内硬编码级别色；e2e 用例（`tests/e2e/visual.spec.ts`）断言解析后的计算色值，防止令牌断链。
 

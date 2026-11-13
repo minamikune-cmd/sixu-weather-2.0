@@ -258,9 +258,9 @@ test.describe('浅色主题对比度（WCAG AA）', () => {
     for (const level of ['blue', 'yellow', 'orange', 'red'] as const) {
       const card = `.official-warning.level-${level}`
       await expect(page.locator(card)).toBeVisible()
-      const { ratio, textColor, backgroundColor, effectiveBackground } = await measureTextContrast(page, card, `${card} strong`)
-      console.log(`[contrast] ${level}: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`)
-      expect(ratio, `${level} 对比度不足：text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`).toBeGreaterThanOrEqual(4.5)
+      const { ratio, textColor, backgroundColor, worstBackground } = await measureTextContrast(page, card, `${card} strong`)
+      console.log(`[contrast] ${level}: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 最差背景=${worstBackground}`)
+      expect(ratio, `${level} 对比度不足：text=${textColor} card=${backgroundColor} 最差背景=${worstBackground}`).toBeGreaterThanOrEqual(4.5)
     }
   })
 
@@ -273,9 +273,9 @@ test.describe('浅色主题对比度（WCAG AA）', () => {
     const card = '.alert-card.watch'
     await expect(page.locator(card)).toBeVisible()
     await page.screenshot({ path: `${ASSETS}/phase3-e2e-contrast-light-watch.png` })
-    const { ratio, textColor, backgroundColor, effectiveBackground } = await measureTextContrast(page, card, `${card} strong`)
-    console.log(`[contrast] watch: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`)
-    expect(ratio, `watch 对比度不足：text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`).toBeGreaterThanOrEqual(4.5)
+    const { ratio, textColor, backgroundColor, worstBackground } = await measureTextContrast(page, card, `${card} strong`)
+    console.log(`[contrast] watch: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 最差背景=${worstBackground}`)
+    expect(ratio, `watch 对比度不足：text=${textColor} card=${backgroundColor} 最差背景=${worstBackground}`).toBeGreaterThanOrEqual(4.5)
   })
 
   test('应用内提示卡 · advisory 级文字对比度 ≥ 4.5:1', async ({ page }) => {
@@ -290,9 +290,9 @@ test.describe('浅色主题对比度（WCAG AA）', () => {
     const card = '.alert-card.advisory'
     await expect(page.locator(card)).toBeVisible()
     await page.screenshot({ path: `${ASSETS}/phase3-e2e-contrast-light-advisory.png` })
-    const { ratio, textColor, backgroundColor, effectiveBackground } = await measureTextContrast(page, card, `${card} strong`)
-    console.log(`[contrast] advisory: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`)
-    expect(ratio, `advisory 对比度不足：text=${textColor} card=${backgroundColor} 实测合成背景=${effectiveBackground}`).toBeGreaterThanOrEqual(4.5)
+    const { ratio, textColor, backgroundColor, worstBackground } = await measureTextContrast(page, card, `${card} strong`)
+    console.log(`[contrast] advisory: ${ratio.toFixed(2)}:1 text=${textColor} card=${backgroundColor} 最差背景=${worstBackground}`)
+    expect(ratio, `advisory 对比度不足：text=${textColor} card=${backgroundColor} 最差背景=${worstBackground}`).toBeGreaterThanOrEqual(4.5)
   })
 })
 

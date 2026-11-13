@@ -162,13 +162,30 @@
 3. **CI 前置**：阶段 08 的 CI 接入可直接复用 `npm test` 与 `test:e2e` 两个脚本（浏览器缓存 key 建议用 `.pw-browsers` 版本指纹）。
 4. **文档衔接**：`docs/reports/phase-3-visual-system.md` 为历史视觉验收报告，本报告与其互补（审计+缺口+E2E）；阶段 04 报告建议沿用本格式。
 
-## 14. 验收问题与修复（2026-11-13 第二轮）
+## 14. 验收问题与修复（2026-11-13 第二、三轮合并记录）
 
-针对验收提出的三类问题，以独立修复提交处理（未重写视觉系统，未改历史提交）：
+针对两轮验收意见，以独立修复提交处理（第二轮 `480544c`，第三轮见 Git 历史；未重写视觉系统，未改历史提交）：
 
-1. **浅色主题预警文字对比度**：新增 `--alert-watch-text` / `--alert-advisory-text` 令牌（深色主题同边框色，行为不变），并在 `.style-light` 为四级官方预警与两级提示卡建立独立深色文字变体（#0b5fcc / #8a5a00 / #b04a00 / #c02c30、#ad4f24 / #856518）。边框令牌保持原色（非文本对比 3:1 即可）。实测对比度经浏览器 canvas 按 WCAG 公式对"浅底叠白"最坏情况计算，全部 ≥4.5:1（`tests/e2e/contrast.ts`，含颜色解析失败显式报错防假通过）。
-2. **E2E 时间夹具时区**：`current.time` 原经 `toISOString()` 生成（UTC，与上海当地时间差 8 小时）；现由 `shanghaiDateTime()` 经 `Intl.DateTimeFormat(timeZone: 'Asia/Shanghai')` 生成，与 `utc_offset_seconds` 一致。`hourSeries` / `daily.time` / `sunrise` / `sunset` 原手工拼接日期（跨月产出 "11-32" 非法值）；现统一走 `addCalendarDays()`（`Date.UTC` 纯日历运算），跨月/跨年/闰年安全，且不依赖执行机器本地时区。
-3. **文档**：`design-system.md` 中错误的 `src/domain/season.ts` 已修正为 `src/domain/seasons.ts`；令牌表同步更新浅色文字变体。
+1. **浅色主题预警文字对比度**：新增 `--alert-watch-text` / `--alert-advisory-text` 令牌（深色主题同边框色，行为不变），并在 `.style-light` 为四级官方预警与两级提示卡建立独立深色文字变体。边框令牌保持原色（非文本对比 3:1 即可）。
+2. **真实合成背景测量**（第三轮重写 `tests/e2e/contrast.ts`）：不再把卡片半透明背景解析式合成在纯白色上。现对活动页面截取景口 PNG，在隔离页用 canvas 解码，采样卡片内部纯背景区（左右内缩 16 CSS px 避开 14px 圆角弧线与左侧彩色边框、上下内缩 3 px 避开 1px 玻璃边框、排除所有子元素并扩 2 px 覆盖文字抗锯齿溢出），每 1 CSS px 一个采样点。玻璃透明度、天空渐变、天气氛围层、暗角全部来自最终渲染像素。
+3. **最差像素法**（第三轮）：对每个有效背景像素逐一计算与标题文字色的 WCAG 相对亮度对比度，**取最低值**作为结果并输出对应背景色——不用中位数/平均数，避免掩盖局部低对比度。采样不足（<16 像素）、采样区越出截图边界、canvas 颜色解析失败（哨兵法 #010203）均显式报错，杜绝假通过。E2E 用例冻结入场动效（`animations: false`）后测量。
+4. **浅色风格天空缺陷修复**（`src/App.css`，第三轮）：根因是 `.style-light.app`（特异性 (0,2,0)）的天空令牌被昼夜×季节 (0,3,0) 与天气再平衡 `.app.app[data-kind=…]` (0,3,0) 覆盖——浅色模式实际渲染中暗场景天空，旧解析式"叠白"假设掩盖了该缺陷。新增 `.style-light.app.app`（同为 (0,3,0)，靠样式表后置位置级联胜出）强制浅色风格在任何季节/天气下天空恒定明亮；深色风格规则不动。
+5. **预警文字 Token（浅色变体最终值，第三轮）**：watch `#93400f`、advisory `#6f520f`、蓝 `#0a54b6`、黄 `#7a4f00`、橙 `#963f00`、红 `#a92428`；浅色卡背景透明度提至 .6（黄 .65）。深色主题 Token 与视觉不变。
+6. **E2E 时间夹具时区**：`current.time` 原经 `toISOString()` 生成（UTC，与上海当地时间差 8 小时）；现由 `shanghaiDateTime()` 经 `Intl.DateTimeFormat(timeZone: 'Asia/Shanghai')` 生成，与 `utc_offset_seconds` 一致。`hourSeries` / `daily.time` / `sunrise` / `sunset` 原手工拼接日期（跨月产出 "11-32" 非法值）；现统一走 `addCalendarDays()`（`Date.UTC` 纯日历运算），跨月/跨年/闰年安全，且不依赖执行机器本地时区。
+7. **文档**：`design-system.md` 中错误的 `src/domain/season.ts` 已修正为 `src/domain/seasons.ts`；令牌表同步更新浅色文字变体。
+
+**最差像素实测（第三轮 E2E 输出，阈值 ≥4.5:1）**：
+
+| 级别 | 最差对比度 | 对应背景色 |
+|---|---|---|
+| 蓝 | 5.07:1 | rgb(183, 224, 245) |
+| 黄 | 5.33:1 | rgb(218, 226, 202) |
+| 橙 | 4.85:1 | rgb(224, 214, 197) |
+| 红 | 4.86:1 | rgb(227, 210, 213) |
+| watch | 4.88:1 | rgb(226, 212, 205) |
+| advisory（雨天场景） | 5.12:1 | rgb(212, 219, 204) |
+
+证据截图：`docs/reports/assets/phase3-e2e-contrast-light-{official,watch,advisory}.png`。
 
 **新增测试 9 例**（总计 11 → 20 例，全部真实执行通过）：
 
