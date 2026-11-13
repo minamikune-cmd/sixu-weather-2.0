@@ -1,0 +1,50 @@
+{
+  "name": "sixu-weather",
+  "private": true,
+  "version": "1.0.0",
+  "description": "四季与昼夜动态天气应用",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc -b && vite build",
+    "lint": "eslint .",
+    "test": "esbuild tests/run.ts --bundle --platform=node --format=cjs --outfile=.tests-bundle.cjs --log-level=warning && node .tests-bundle.cjs && rm .tests-bundle.cjs",
+    "cap:sync": "npm run build && npx cap sync android",
+    "android:build": "npm run cap:sync && cd android && ./gradlew :app:assembleDebug",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler pages deploy dist --project-name=sixu-weather-2-0"
+  },
+  "dependencies": {
+    "@capacitor/android": "^8.6.0",
+    "@capacitor/app": "^8.1.2",
+    "@capacitor/core": "^8.6.0",
+    "@capacitor/geolocation": "^8.2.4",
+    "@capacitor/local-notifications": "^8.3.1",
+    "@capacitor/network": "^8.0.1",
+    "@capacitor/preferences": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.4",
+    "lucide-react": "^0.562.0",
+    "react": "^19.2.0",
+    "react-dom": "^19.2.0"
+  },
+  "devDependencies": {
+    "@capacitor/assets": "^4.0.0",
+    "@capacitor/cli": "^8.6.0",
+    "@eslint/js": "^9.39.1",
+    "@types/node": "^24.10.1",
+    "@types/react": "^19.2.5",
+    "@types/react-dom": "^19.2.3",
+    "@vitejs/plugin-react": "^5.1.1",
+    "eslint": "^9.39.1",
+    "eslint-plugin-react-hooks": "^7.0.1",
+    "eslint-plugin-react-refresh": "^0.4.24",
+    "globals": "^16.5.0",
+    "typescript": "~5.9.3",
+    "typescript-eslint": "^8.46.4",
+    "vite": "^7.2.4"
+  },
+  "engines": {
+    "node": ">=20.19.0"
+  }
+}
